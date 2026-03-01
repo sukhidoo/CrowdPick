@@ -1,0 +1,774 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>CrowdPick</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tensorflow/4.10.0/tf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.2/dist/coco-ssd.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@400;500&display=swap');
+
+  :root {
+    --bg: #0a0a0f;
+    --surface: #12121a;
+    --border: #1e1e2e;
+    --accent: #ff3c5f;
+    --accent2: #ffcc00;
+    --text: #e8e8f0;
+    --muted: #555570;
+    --win: #00ffaa;
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+    --safe-left: env(safe-area-inset-left, 0px);
+    --safe-right: env(safe-area-inset-right, 0px);
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    height: 100%;
+    overflow: hidden;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+    user-select: none;
+  }
+
+  #app {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* VIDEO LAYER */
+  #videoWrapper {
+    position: relative;
+    flex: 1;
+    background: #000;
+    overflow: hidden;
+  }
+
+  #video {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    opacity: 0;
+    transition: opacity 0.4s;
+  }
+
+  #video.active { opacity: 1; }
+
+  #canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+  }
+
+  #placeholder {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1.2rem;
+    color: var(--muted);
+    transition: opacity 0.3s;
+  }
+
+  #placeholder.hidden { opacity: 0; pointer-events: none; }
+
+  .ph-icon {
+    width: 72px; height: 72px;
+    border: 1.5px solid var(--border);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    animation: pulse-border 2.5s ease-in-out infinite;
+  }
+
+  @keyframes pulse-border {
+    0%, 100% { border-color: var(--border); }
+    50% { border-color: #333350; }
+  }
+
+  .ph-icon svg { width: 32px; height: 32px; opacity: 0.45; }
+  #placeholder p { font-size: 0.72rem; letter-spacing: 0.15em; text-transform: uppercase; }
+
+  #scanLine {
+    position: absolute;
+    left: 0; right: 0; height: 1.5px;
+    background: linear-gradient(90deg, transparent 0%, var(--accent) 50%, transparent 100%);
+    pointer-events: none;
+    z-index: 5;
+    display: none;
+    animation: scan 2.5s linear infinite;
+  }
+
+  @keyframes scan {
+    0%   { top: 0%;   opacity: 0; }
+    5%   { opacity: 0.7; }
+    95%  { opacity: 0.7; }
+    100% { top: 100%; opacity: 0; }
+  }
+
+  /* Overlaid badges */
+  #countBadge {
+    position: absolute;
+    top: calc(var(--safe-top) + 12px);
+    left: calc(var(--safe-left) + 12px);
+    background: rgba(0,0,0,0.6);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 5px 14px;
+    display: none;
+    align-items: baseline;
+    gap: 6px;
+    z-index: 10;
+  }
+
+  #countBadge .num {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 2rem;
+    line-height: 1;
+    color: var(--text);
+    transition: color 0.2s;
+  }
+
+  #countBadge .num.has { color: var(--accent2); }
+  #countBadge .lbl { font-size: 0.6rem; letter-spacing: 0.12em; color: var(--muted); text-transform: uppercase; }
+
+  #fpsBadge {
+    position: absolute;
+    top: calc(var(--safe-top) + 12px);
+    right: calc(var(--safe-right) + 12px);
+    background: rgba(0,0,0,0.6);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 5px 10px;
+    font-size: 0.62rem;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    display: none;
+    z-index: 10;
+  }
+
+  #fpsBadge span { color: var(--accent2); }
+
+  /* BOTTOM CONTROLS */
+  #controls {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    padding: 0 16px;
+    padding-bottom: calc(var(--safe-bottom) + 16px);
+    padding-left: calc(var(--safe-left) + 16px);
+    padding-right: calc(var(--safe-right) + 16px);
+    background: linear-gradient(to top, rgba(10,10,15,0.98) 0%, rgba(10,10,15,0.85) 75%, transparent 100%);
+    z-index: 20;
+  }
+
+  #statusRow {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 14px 0 10px;
+  }
+
+  .dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--muted);
+    flex-shrink: 0;
+    transition: background 0.3s;
+  }
+
+  .dot.loading { background: var(--accent2); animation: blink 0.5s ease-in-out infinite; }
+  .dot.live    { background: var(--accent);  animation: blink 1s ease-in-out infinite; }
+  .dot.ready   { background: var(--win); }
+
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.25; }
+  }
+
+  #statusText {
+    font-size: 0.7rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    flex: 1;
+  }
+
+  #btnRow {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+
+  .btn {
+    flex: 1;
+    height: 58px;
+    border: none;
+    border-radius: 8px;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.75rem;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: opacity 0.12s, transform 0.1s;
+    -webkit-appearance: none;
+    outline: none;
+    touch-action: manipulation;
+  }
+
+  .btn:active { transform: scale(0.96); opacity: 0.8; }
+  .btn:disabled { opacity: 0.28; pointer-events: none; }
+
+  .btn-cam  { background: var(--accent); color: #fff; }
+  .btn-pick { background: var(--win);    color: #000; font-size: 0.82rem; }
+  .btn-reset {
+    background: transparent;
+    color: var(--text);
+    border: 1px solid var(--border);
+    flex: 0 0 58px;
+    font-size: 1.3rem;
+  }
+
+  #confRow {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding-bottom: 4px;
+  }
+
+  #confRow label {
+    font-size: 0.62rem;
+    color: var(--muted);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  input[type=range] {
+    flex: 1;
+    -webkit-appearance: none;
+    appearance: none;
+    height: 3px;
+    background: var(--border);
+    border-radius: 2px;
+    outline: none;
+  }
+
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 24px; height: 24px;
+    border-radius: 50%;
+    background: var(--accent);
+    cursor: pointer;
+  }
+
+  #confVal {
+    font-size: 0.72rem;
+    color: var(--text);
+    min-width: 32px;
+    text-align: right;
+  }
+
+  /* WINNER OVERLAY */
+  #winnerOverlay {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0,0,0,0.82);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s;
+  }
+
+  #winnerOverlay.show { opacity: 1; pointer-events: all; }
+
+  #winnerCard { text-align: center; padding: 0 2rem; }
+
+  .w-label {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: clamp(3.5rem, 18vw, 7rem);
+    letter-spacing: 0.06em;
+    color: var(--win);
+    line-height: 0.9;
+    text-shadow: 0 0 50px rgba(0,255,170,0.35);
+    animation: pop 0.45s cubic-bezier(0.34,1.56,0.64,1) both;
+  }
+
+  .w-num {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: clamp(6rem, 30vw, 12rem);
+    color: #fff;
+    line-height: 1;
+    animation: pop 0.45s 0.1s cubic-bezier(0.34,1.56,0.64,1) both;
+  }
+
+  .w-sub {
+    font-size: 0.75rem;
+    letter-spacing: 0.2em;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-top: 0.3rem;
+    animation: fadeup 0.4s 0.25s both;
+  }
+
+  .w-close {
+    margin-top: 2.5rem;
+    padding: 16px 44px;
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+    font-size: 0.72rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    border-radius: 6px;
+    cursor: pointer;
+    -webkit-appearance: none;
+    touch-action: manipulation;
+    animation: fadeup 0.4s 0.35s both;
+  }
+
+  .w-close:active { border-color: var(--text); color: var(--text); }
+
+  @keyframes pop {
+    from { transform: scale(0.3); opacity: 0; }
+    to   { transform: scale(1);   opacity: 1; }
+  }
+  @keyframes fadeup {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Confetti */
+  .confetti {
+    position: fixed;
+    pointer-events: none;
+    z-index: 101;
+    border-radius: 2px;
+    animation: fall linear forwards;
+  }
+  @keyframes fall {
+    0%   { transform: translateY(-10px) rotate(0deg);   opacity: 1; }
+    100% { transform: translateY(105vh) rotate(600deg); opacity: 0; }
+  }
+
+  /* Loading overlay */
+  #loadingOverlay {
+    position: fixed;
+    inset: 0;
+    z-index: 200;
+    background: var(--bg);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1.5rem;
+    transition: opacity 0.4s;
+  }
+
+  #loadingOverlay.hide { opacity: 0; pointer-events: none; }
+
+  #loadingOverlay h1 {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 3rem;
+    letter-spacing: 0.1em;
+  }
+
+  #loadingOverlay h1 span { color: var(--accent); }
+
+  .spinner {
+    width: 44px; height: 44px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  #loadMsg {
+    font-size: 0.72rem;
+    color: var(--muted);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+</style>
+</head>
+<body>
+
+<div id="loadingOverlay">
+  <h1>CROWD<span>PICK</span></h1>
+  <div class="spinner"></div>
+  <span id="loadMsg">Loading AI model...</span>
+</div>
+
+<div id="app">
+  <div id="videoWrapper">
+
+    <div id="placeholder">
+      <div class="ph-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+          <circle cx="9" cy="7" r="4"/>
+          <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+          <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+        </svg>
+      </div>
+      <p>Tap "Start Camera" to begin</p>
+    </div>
+
+    <div id="scanLine"></div>
+
+    <div id="countBadge">
+      <span class="num" id="countNum">0</span>
+      <span class="lbl">people</span>
+    </div>
+
+    <div id="fpsBadge">SCAN <span id="fpsVal">--</span>/s</div>
+
+    <!-- webkit-playsinline is required for older iOS Safari -->
+    <video id="video" autoplay muted playsinline webkit-playsinline x5-playsinline></video>
+    <canvas id="canvas"></canvas>
+  </div>
+
+  <div id="controls">
+    <div id="statusRow">
+      <div class="dot" id="dot"></div>
+      <span id="statusText">Ready</span>
+    </div>
+    <div id="btnRow">
+      <button class="btn btn-cam"   id="camBtn"   onclick="toggleCamera()">Start Camera</button>
+      <button class="btn btn-pick"  id="pickBtn"  onclick="pickWinner()" disabled>Pick Winner</button>
+      <button class="btn btn-reset" id="resetBtn" onclick="resetWinner()" style="display:none">↺</button>
+    </div>
+    <div id="confRow">
+      <label>Confidence</label>
+      <input type="range" id="confSlider" min="20" max="90" value="45" oninput="updateConf(this.value)">
+      <span id="confVal">45%</span>
+    </div>
+  </div>
+</div>
+
+<div id="winnerOverlay">
+  <div id="winnerCard">
+    <div class="w-label">WINNER</div>
+    <div class="w-num"   id="winnerNum">#1</div>
+    <div class="w-sub">has been selected</div>
+    <button class="w-close" onclick="closeWinner()">Dismiss</button>
+  </div>
+</div>
+
+<script>
+  let model         = null;
+  let stream        = null;
+  let cameraActive  = false;
+  let loopRunning   = false;
+  let detectedPersons = [];
+  let winnerIndex   = null;
+  let confThreshold = 0.45;
+
+  // FPS tracking
+  let frameCount = 0;
+  let fpsTimer   = Date.now();
+
+  const video       = document.getElementById('video');
+  const canvas      = document.getElementById('canvas');
+  const ctx         = canvas.getContext('2d');
+  const dot         = document.getElementById('dot');
+  const statusText  = document.getElementById('statusText');
+  const countNum    = document.getElementById('countNum');
+  const countBadge  = document.getElementById('countBadge');
+  const fpsBadge    = document.getElementById('fpsBadge');
+  const fpsVal      = document.getElementById('fpsVal');
+  const camBtn      = document.getElementById('camBtn');
+  const pickBtn     = document.getElementById('pickBtn');
+  const resetBtn    = document.getElementById('resetBtn');
+  const placeholder = document.getElementById('placeholder');
+  const scanLine    = document.getElementById('scanLine');
+
+  // ── Model ────────────────────────────────────────────────────
+  async function loadModel() {
+    try {
+      // lite_mobilenet_v2 is faster on mobile hardware while still being solid for people
+      model = await cocoSsd.load({ base: 'lite_mobilenet_v2' });
+      hideLoader();
+      setStatus('ready', 'Ready — tap Start Camera');
+    } catch(e) {
+      document.getElementById('loadMsg').textContent = 'Load failed — refresh to retry';
+    }
+  }
+
+  function hideLoader() {
+    const el = document.getElementById('loadingOverlay');
+    el.classList.add('hide');
+    setTimeout(() => el.remove(), 500);
+  }
+
+  // ── Camera ───────────────────────────────────────────────────
+  async function toggleCamera() {
+    cameraActive ? stopCamera() : await startCamera();
+  }
+
+  async function startCamera() {
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: { ideal: 'environment' }, // rear camera on mobile
+          width:  { ideal: 1280 },
+          height: { ideal: 720 }
+        },
+        audio: false
+      });
+
+      video.srcObject = stream;
+      // iOS Safari requires explicit play() after setting srcObject
+      await video.play();
+
+      video.classList.add('active');
+      placeholder.classList.add('hidden');
+      scanLine.style.display = '';
+      countBadge.style.display = 'flex';
+      fpsBadge.style.display   = '';
+      camBtn.textContent = 'Stop Camera';
+      cameraActive = true;
+      setStatus('live', 'Scanning...');
+
+      video.addEventListener('loadedmetadata', resizeCanvas, { once: true });
+      resizeCanvas();
+      startLoop();
+
+    } catch(e) {
+      const msg = e.name === 'NotAllowedError'
+        ? 'Camera permission denied'
+        : 'Camera error: ' + e.message;
+      setStatus('', msg);
+    }
+  }
+
+  function stopCamera() {
+    stopLoop();
+    if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
+    video.srcObject = null;
+    video.classList.remove('active');
+    placeholder.classList.remove('hidden');
+    scanLine.style.display   = 'none';
+    countBadge.style.display = 'none';
+    fpsBadge.style.display   = 'none';
+    camBtn.textContent = 'Start Camera';
+    cameraActive = false;
+    detectedPersons = [];
+    winnerIndex = null;
+    pickBtn.disabled = true;
+    resetBtn.style.display = 'none';
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    setStatus('ready', 'Camera stopped');
+    countNum.textContent = '0';
+    countNum.classList.remove('has');
+  }
+
+  // ── Detection loop ───────────────────────────────────────────
+  // Continuous chained-await loop — runs as fast as the model can go.
+  // No setInterval means no queuing of frames; each detection finishes
+  // before the next one starts, which is safest on constrained hardware.
+  function startLoop() {
+    if (loopRunning) return;
+    loopRunning = true;
+    loop();
+  }
+
+  function stopLoop() { loopRunning = false; }
+
+  async function loop() {
+    while (loopRunning) {
+      if (video.readyState >= 2 && video.videoWidth > 0 && !video.paused) {
+        try {
+          const preds   = await model.detect(video);
+          if (!loopRunning) break;
+
+          const persons = preds.filter(p => p.class === 'person' && p.score >= confThreshold);
+          detectedPersons = persons;
+
+          drawDetections(persons);
+          updateCount(persons.length);
+          // Only re-enable pick button if no winner has been locked in
+          if (winnerIndex === null) {
+            pickBtn.disabled = persons.length === 0;
+          }
+
+          // FPS counter
+          frameCount++;
+          const now = Date.now();
+          if (now - fpsTimer >= 1000) {
+            fpsVal.textContent = frameCount;
+            frameCount = 0;
+            fpsTimer   = now;
+          }
+        } catch(_) {
+          await sleep(150);
+        }
+      } else {
+        await sleep(80);
+      }
+    }
+  }
+
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+  // ── Canvas ───────────────────────────────────────────────────
+  function resizeCanvas() {
+    if (video.videoWidth && video.videoHeight) {
+      canvas.width  = video.videoWidth;
+      canvas.height = video.videoHeight;
+    }
+  }
+
+  function drawDetections(persons) {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    persons.forEach((p, i) => {
+      const [x, y, w, h] = p.bbox;
+      const isWinner = winnerIndex === i;
+      const color    = isWinner ? '#00ffaa' : '#ff3c5f';
+
+      ctx.globalAlpha = isWinner ? 1 : 0.88;
+      ctx.strokeStyle = color;
+      ctx.lineWidth   = isWinner ? 2.5 : 1.5;
+      ctx.strokeRect(x, y, w, h);
+
+      // Glow on winner
+      if (isWinner) {
+        ctx.shadowColor = '#00ffaa';
+        ctx.shadowBlur  = 20;
+        ctx.strokeRect(x, y, w, h);
+        ctx.shadowBlur  = 0;
+      }
+
+      // Corner brackets
+      const cs = Math.min(20, w * 0.18, h * 0.12);
+      ctx.lineWidth = isWinner ? 3.5 : 2.5;
+      ctx.beginPath();
+      ctx.moveTo(x, y + cs);       ctx.lineTo(x, y);         ctx.lineTo(x + cs, y);
+      ctx.moveTo(x + w - cs, y);   ctx.lineTo(x + w, y);     ctx.lineTo(x + w, y + cs);
+      ctx.moveTo(x, y + h - cs);   ctx.lineTo(x, y + h);     ctx.lineTo(x + cs, y + h);
+      ctx.moveTo(x + w - cs, y+h); ctx.lineTo(x + w, y + h); ctx.lineTo(x + w, y + h - cs);
+      ctx.stroke();
+
+      // Label
+      const label    = isWinner ? '★  WINNER' : `#${i + 1}`;
+      const fontSize = isWinner ? 15 : 13;
+      ctx.font       = `500 ${fontSize}px 'DM Mono', monospace`;
+      const tw = ctx.measureText(label).width;
+      const lh = fontSize + 8;
+
+      ctx.globalAlpha = 0.9;
+      ctx.fillStyle   = color;
+      ctx.fillRect(x, y - lh, tw + 12, lh);
+      ctx.fillStyle   = isWinner ? '#000' : '#fff';
+      ctx.globalAlpha = 1;
+      ctx.fillText(label, x + 6, y - 5);
+    });
+
+    ctx.globalAlpha = 1;
+    ctx.shadowBlur  = 0;
+  }
+
+  function updateCount(n) {
+    countNum.textContent = n;
+    countNum.classList.toggle('has', n > 0);
+  }
+
+  // ── Winner ───────────────────────────────────────────────────
+  function pickWinner() {
+    if (detectedPersons.length === 0) return;
+
+    // Instant pick — no cycling animation
+    winnerIndex = Math.floor(Math.random() * detectedPersons.length);
+    drawDetections(detectedPersons);
+    pickBtn.disabled = true;
+    resetBtn.style.display = '';
+
+    document.getElementById('winnerNum').textContent = '#' + (winnerIndex + 1);
+    document.getElementById('winnerOverlay').classList.add('show');
+    launchConfetti();
+  }
+
+  function closeWinner() {
+    document.getElementById('winnerOverlay').classList.remove('show');
+  }
+
+  function resetWinner() {
+    winnerIndex = null;
+    drawDetections(detectedPersons);
+    pickBtn.disabled = detectedPersons.length === 0;
+    resetBtn.style.display = 'none';
+  }
+
+  // ── Confetti ─────────────────────────────────────────────────
+  function launchConfetti() {
+    const colors = ['#ff3c5f','#ffcc00','#00ffaa','#ffffff','#ff9940','#a78bfa'];
+    for (let i = 0; i < 65; i++) {
+      const el   = document.createElement('div');
+      el.className = 'confetti';
+      const size = 5 + Math.random() * 7;
+      el.style.cssText = `
+        left:${Math.random()*100}vw;top:-12px;
+        width:${size}px;height:${size}px;
+        background:${colors[Math.floor(Math.random()*colors.length)]};
+        border-radius:${Math.random()>0.45?'50%':'1px'};
+        animation-duration:${1.8+Math.random()*2.2}s;
+        animation-delay:${Math.random()*0.6}s;
+      `;
+      document.body.appendChild(el);
+      setTimeout(() => el.remove(), 5000);
+    }
+  }
+
+  // ── Settings ─────────────────────────────────────────────────
+  function updateConf(v) {
+    confThreshold = v / 100;
+    document.getElementById('confVal').textContent = v + '%';
+  }
+
+  function setStatus(state, text) {
+    dot.className    = 'dot ' + state;
+    statusText.textContent = text;
+  }
+
+  // ── iOS: resume loop when returning to foreground ─────────────
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && cameraActive && !loopRunning) {
+      startLoop();
+    }
+  });
+
+  window.addEventListener('resize', () => { if (video.videoWidth) resizeCanvas(); });
+
+  // Start loading immediately
+  loadModel();
+</script>
+</body>
+</html>
