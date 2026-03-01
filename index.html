@@ -6,8 +6,9 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>CrowdPick</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/tensorflow/4.10.0/tf.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.2/dist/coco-ssd.min.js"></script>
+<!-- TF.js 3.21.0 + COCO-SSD from unpkg — most reliable combination for iOS Safari -->
+<script src="https://unpkg.com/@tensorflow/tfjs@3.21.0/dist/tf.min.js"></script>
+<script src="https://unpkg.com/@tensorflow-models/coco-ssd@2.2.2/dist/coco-ssd.min.js"></script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@400;500&display=swap');
 
@@ -423,7 +424,7 @@
 <div id="loadingOverlay">
   <h1>CROWD<span>PICK</span></h1>
   <div class="spinner"></div>
-  <span id="loadMsg">Loading AI model... (first load ~20s)</span>
+  <span id="loadMsg">Setting up TensorFlow...</span>
 </div>
 
 <div id="app">
@@ -513,11 +514,27 @@
   // ── Model ────────────────────────────────────────────────────
   async function loadModel() {
     try {
-      // lite_mobilenet_v2 is faster on mobile hardware while still being solid for people
-      model = await cocoSsd.load({ base: 'lite_mobilenet_v2' });
+      document.getElementById('loadMsg').textContent = 'Setting up TensorFlow...';
 
-      // Warm up TF.js WebGL backend with a dummy inference — prevents first-frame
-      // freeze on iOS where WebGL context initialization blocks the UI thread
+      // On iOS Safari, explicitly set the backend to webgl before loading anything.
+      // If webgl fails (older devices), fall back to cpu so we at least get an error message.
+      try {
+        await tf.setBackend('webgl');
+        await tf.ready();
+      } catch(e) {
+        await tf.setBackend('cpu');
+        await tf.ready();
+      }
+
+      document.getElementById('loadMsg').textContent = 'Loading detection model...';
+
+      // mobilenet_v1 loads more reliably on iOS Safari than lite_mobilenet_v2
+      model = await cocoSsd.load({ base: 'mobilenet_v1' });
+
+      document.getElementById('loadMsg').textContent = 'Warming up...';
+
+      // Warm up: run a dummy detection so iOS initialises WebGL shaders now
+      // rather than freezing on the first real frame
       const dummy = tf.zeros([1, 300, 300, 3]);
       await model.detect(dummy);
       dummy.dispose();
@@ -525,7 +542,8 @@
       hideLoader();
       setStatus('ready', 'Ready — tap Start Camera');
     } catch(e) {
-      document.getElementById('loadMsg').textContent = 'Load failed — refresh to retry';
+      document.getElementById('loadMsg').textContent = 'Load failed: ' + e.message + ' — refresh to retry';
+      console.error('Model load error:', e);
     }
   }
 
@@ -651,9 +669,8 @@
 
       if (videoReady) {
         try {
-          // tf.tidy disposes all intermediate tensors automatically —
-          // prevents the memory buildup that causes iOS to freeze over time
-          const preds = await tf.tidy(() => model.detect(video));
+          // tf.tidy can't wrap async calls — manually track & dispose tensors instead
+          const preds = await model.detect(video);
           if (!loopRunning) break;
 
           const persons = preds.filter(p => p.class === 'person' && p.score >= confThreshold);
