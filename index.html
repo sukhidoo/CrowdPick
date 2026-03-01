@@ -533,9 +533,9 @@
 
       document.getElementById('loadMsg').textContent = 'Warming up...';
 
-      // Warm up: run a dummy detection so iOS initialises WebGL shaders now
-      // rather than freezing on the first real frame
-      const dummy = tf.zeros([1, 300, 300, 3]);
+      // Warm up: model.detect expects a 3D tensor [height, width, 3] — not a 4D batch.
+      // This pre-initialises WebGL shaders so the first real frame doesn't freeze.
+      const dummy = tf.zeros([300, 300, 3]);
       await model.detect(dummy);
       dummy.dispose();
 
