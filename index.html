@@ -423,7 +423,7 @@
 <div id="loadingOverlay">
   <h1>CROWD<span>PICK</span></h1>
   <div class="spinner"></div>
-  <span id="loadMsg">Loading AI model...</span>
+  <span id="loadMsg">Loading AI model... (first load ~20s)</span>
 </div>
 
 <div id="app">
@@ -515,6 +515,13 @@
     try {
       // lite_mobilenet_v2 is faster on mobile hardware while still being solid for people
       model = await cocoSsd.load({ base: 'lite_mobilenet_v2' });
+
+      // Warm up TF.js WebGL backend with a dummy inference — prevents first-frame
+      // freeze on iOS where WebGL context initialization blocks the UI thread
+      const dummy = tf.zeros([1, 300, 300, 3]);
+      await model.detect(dummy);
+      dummy.dispose();
+
       hideLoader();
       setStatus('ready', 'Ready — tap Start Camera');
     } catch(e) {
@@ -545,9 +552,13 @@
       });
 
       video.srcObject = stream;
-      // iOS Safari requires explicit play() after setting srcObject
-      await video.play();
 
+      // iOS Safari: do NOT await play() — it can deadlock when called right after
+      // setting srcObject. Instead, call it non-blocking and let the 'playing'
+      // event tell us when frames are actually flowing.
+      video.play().catch(() => {});
+
+      // Show UI immediately
       video.classList.add('active');
       placeholder.classList.add('hidden');
       scanLine.style.display = '';
@@ -555,11 +566,24 @@
       fpsBadge.style.display   = '';
       camBtn.textContent = 'Stop Camera';
       cameraActive = true;
-      setStatus('live', 'Scanning...');
+      setStatus('live', 'Starting camera...');
 
-      video.addEventListener('loadedmetadata', resizeCanvas, { once: true });
-      resizeCanvas();
-      startLoop();
+      // Wait for the video to actually be playing before starting detection.
+      // 'playing' is more reliable than 'loadedmetadata' on iOS Safari.
+      video.addEventListener('playing', onVideoPlaying, { once: true });
+
+      // Fallback: if 'playing' never fires within 5s, try polling
+      const fallbackTimer = setTimeout(() => {
+        video.removeEventListener('playing', onVideoPlaying);
+        pollUntilReady();
+      }, 5000);
+
+      function onVideoPlaying() {
+        clearTimeout(fallbackTimer);
+        resizeCanvas();
+        setStatus('live', 'Scanning...');
+        startLoop();
+      }
 
     } catch(e) {
       const msg = e.name === 'NotAllowedError'
@@ -567,6 +591,20 @@
         : 'Camera error: ' + e.message;
       setStatus('', msg);
     }
+  }
+
+  // Fallback: poll until video has real dimensions, then start
+  function pollUntilReady() {
+    const check = setInterval(() => {
+      if (video.videoWidth > 0 && video.videoHeight > 0) {
+        clearInterval(check);
+        resizeCanvas();
+        setStatus('live', 'Scanning...');
+        startLoop();
+      }
+    }, 200);
+    // Give up after 15s
+    setTimeout(() => clearInterval(check), 15000);
   }
 
   function stopCamera() {
@@ -604,9 +642,18 @@
 
   async function loop() {
     while (loopRunning) {
-      if (video.readyState >= 2 && video.videoWidth > 0 && !video.paused) {
+      // iOS safety checks: video must be playing with real dimensions and not ended
+      const videoReady = video.readyState >= 2
+        && video.videoWidth > 0
+        && video.videoHeight > 0
+        && !video.paused
+        && !video.ended;
+
+      if (videoReady) {
         try {
-          const preds   = await model.detect(video);
+          // tf.tidy disposes all intermediate tensors automatically —
+          // prevents the memory buildup that causes iOS to freeze over time
+          const preds = await tf.tidy(() => model.detect(video));
           if (!loopRunning) break;
 
           const persons = preds.filter(p => p.class === 'person' && p.score >= confThreshold);
@@ -614,7 +661,7 @@
 
           drawDetections(persons);
           updateCount(persons.length);
-          // Only re-enable pick button if no winner has been locked in
+
           if (winnerIndex === null) {
             pickBtn.disabled = persons.length === 0;
           }
@@ -627,11 +674,16 @@
             frameCount = 0;
             fpsTimer   = now;
           }
-        } catch(_) {
-          await sleep(150);
+
+          // Yield to the browser event loop briefly so UI stays responsive
+          await sleep(0);
+
+        } catch(e) {
+          console.warn('Detection error:', e.message);
+          await sleep(200);
         }
       } else {
-        await sleep(80);
+        await sleep(100);
       }
     }
   }
