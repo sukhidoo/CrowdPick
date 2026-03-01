@@ -535,7 +535,7 @@
 
       // Warm up: model.detect expects a 3D tensor [height, width, 3] — not a 4D batch.
       // This pre-initialises WebGL shaders so the first real frame doesn't freeze.
-      const dummy = tf.zeros([300, 300, 3]);
+      const dummy = tf.zeros([300, 300, 3], 'int32');
       await model.detect(dummy);
       dummy.dispose();
 
