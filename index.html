@@ -795,11 +795,11 @@
     resultCanvas.height = frameCanvas.height;
     resultCtx.drawImage(frameCanvas, 0, 0);
 
-    // Dim non-winners
+    // Dim non-winners very subtly
     persons.forEach((p, i) => {
       if (i !== winnerIdx) {
         const { x, y, w, h } = rfToRect(p);
-        resultCtx.fillStyle = 'rgba(0,0,0,0.38)';
+        resultCtx.fillStyle = 'rgba(0,0,0,0.15)';
         resultCtx.fillRect(x, y, w, h);
       }
     });
@@ -809,7 +809,7 @@
       const isWinner = i === winnerIdx;
       const color    = isWinner ? '#00ffaa' : '#ff3c5f';
 
-      resultCtx.globalAlpha = isWinner ? 1 : 0.65;
+      resultCtx.globalAlpha = isWinner ? 1 : 0.18;
       resultCtx.strokeStyle = color;
       resultCtx.lineWidth   = isWinner ? 4 : 1.5;
       resultCtx.strokeRect(x, y, w, h);
@@ -831,19 +831,19 @@
       resultCtx.moveTo(x + w - cs, y + h); resultCtx.lineTo(x + w, y + h);  resultCtx.lineTo(x + w, y + h - cs);
       resultCtx.stroke();
 
-      // Label — scale font to box size so it's readable even on small boxes
-      const label    = isWinner ? '★ WINNER' : `#${i + 1}`;
-      const fontSize = Math.max(11, Math.min(20, h * 0.18));
-      resultCtx.font = `600 ${fontSize}px 'DM Mono', monospace`;
-      const tw = resultCtx.measureText(label).width;
-      const lh = fontSize + 8;
-
-      resultCtx.globalAlpha = isWinner ? 0.95 : 0.82;
-      resultCtx.fillStyle   = color;
-      resultCtx.fillRect(x, y - lh, tw + 12, lh);
-      resultCtx.fillStyle   = isWinner ? '#000' : '#fff';
-      resultCtx.globalAlpha = 1;
-      resultCtx.fillText(label, x + 6, y - 5);
+      // Only draw labels for winner
+      if (isWinner) {
+        const label    = '★ WINNER';
+        const fontSize = Math.max(11, Math.min(20, h * 0.18));
+        resultCtx.globalAlpha = 1;
+        resultCtx.font = `600 ${fontSize}px 'DM Mono', monospace`;
+        const tw = resultCtx.measureText(label).width;
+        const lh = fontSize + 8;
+        resultCtx.fillStyle = color;
+        resultCtx.fillRect(x, y - lh, tw + 12, lh);
+        resultCtx.fillStyle = '#000';
+        resultCtx.fillText(label, x + 6, y - 5);
+      }
     });
 
     resultCtx.globalAlpha = 1;
