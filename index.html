@@ -566,10 +566,10 @@
   const resultCanvas = document.getElementById('resultCanvas');
   const resultCtx    = resultCanvas.getContext('2d');
 
-  // Roboflow crowd detection model — YOLOv8 trained on dense crowd scenes
-  // Model: "crowd-counting" universe model, accurate up to 100+ people
+  // Roboflow people-detection-general v5 — 19,233 image training set, 89.4% mAP
+  // Public universe model, accessible with any valid API key
   const RF_MODEL   = 'people-detection-general';
-  const RF_VERSION = '3';
+  const RF_VERSION = '5';
 
   // ── API Key setup ────────────────────────────────────────────
   function submitApiKey() {
@@ -643,10 +643,10 @@
       // Convert canvas frame to base64 JPEG for the API
       const base64Image = frameCanvas.toDataURL('image/jpeg', 0.92).split(',')[1];
 
-      // Call Roboflow inference API
+      // Call Roboflow hosted inference API
       const confPct = Math.round(confThreshold * 100);
       const apiURL  = `https://detect.roboflow.com/${RF_MODEL}/${RF_VERSION}`
-                    + `?api_key=${apiKey}&confidence=${confPct}&overlap=30`;
+                    + `?api_key=${apiKey}&confidence=${confPct}&overlap=30&stroke=1`;
 
       const response = await fetch(apiURL, {
         method: 'POST',
@@ -655,8 +655,15 @@
       });
 
       if (!response.ok) {
-        const err = await response.json().catch(() => ({}));
-        throw new Error(err.message || `API error ${response.status}`);
+        let errMsg = `HTTP ${response.status}`;
+        try {
+          const errBody = await response.json();
+          errMsg = errBody.message || errBody.error || errMsg;
+        } catch(_) {}
+        if (response.status === 401 || response.status === 403) {
+          errMsg = 'Invalid API key — tap reload and re-enter your key';
+        }
+        throw new Error(errMsg);
       }
 
       setProgress(80, 'Processing detections...');
