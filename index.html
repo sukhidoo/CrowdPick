@@ -566,10 +566,67 @@
   const resultCanvas = document.getElementById('resultCanvas');
   const resultCtx    = resultCanvas.getContext('2d');
 
-  // Roboflow people-detection-general v5 — 19,233 image training set, 89.4% mAP
-  // Public universe model, accessible with any valid API key
-  const RF_MODEL   = 'people-detection-general';
-  const RF_VERSION = '5';
+  // Two models run in parallel and results are merged:
+  // 1. Full-body detection — good for people with clear separation
+  // 2. Head detection — critical for dense crowds where bodies overlap heavily
+  //    Head model trained on 4,142 dense crowd images specifically for counting
+  const MODELS = [
+    { id: 'people-detection-general', version: '5',  label: 'body' },
+    { id: 'head-counting-system',     version: '1',  label: 'head' },
+  ];
+
+  // Run a single Roboflow model inference
+  async function runModel(modelId, version, base64Image, confPct) {
+    const url = `https://detect.roboflow.com/${modelId}/${version}`
+              + `?api_key=${apiKey}&confidence=${confPct}&overlap=30`;
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: base64Image
+    });
+    if (!res.ok) {
+      let msg = `HTTP ${res.status}`;
+      try { const j = await res.json(); msg = j.message || j.error || msg; } catch(_) {}
+      if (res.status === 401 || res.status === 403) msg = 'Invalid API key — reload and re-enter your key';
+      throw new Error(msg);
+    }
+    const data = await res.json();
+    return data.predictions || [];
+  }
+
+  // Non-maximum suppression: remove duplicate boxes that overlap > threshold
+  // This prevents counting the same person from both body + head models twice
+  function nms(boxes, iouThreshold = 0.35) {
+    // Sort by confidence descending
+    const sorted = [...boxes].sort((a, b) => b.confidence - a.confidence);
+    const kept = [];
+
+    for (const box of sorted) {
+      const bx1 = box.x - box.width  / 2;
+      const by1 = box.y - box.height / 2;
+      const bx2 = bx1 + box.width;
+      const by2 = by1 + box.height;
+
+      let suppressed = false;
+      for (const keep of kept) {
+        const kx1 = keep.x - keep.width  / 2;
+        const ky1 = keep.y - keep.height / 2;
+        const kx2 = kx1 + keep.width;
+        const ky2 = ky1 + keep.height;
+
+        // Intersection area
+        const ix = Math.max(0, Math.min(bx2, kx2) - Math.max(bx1, kx1));
+        const iy = Math.max(0, Math.min(by2, ky2) - Math.max(by1, ky1));
+        const intersection = ix * iy;
+        const union = box.width * box.height + keep.width * keep.height - intersection;
+        const iou = union > 0 ? intersection / union : 0;
+
+        if (iou > iouThreshold) { suppressed = true; break; }
+      }
+      if (!suppressed) kept.push(box);
+    }
+    return kept;
+  }
 
   // ── API Key setup ────────────────────────────────────────────
   function submitApiKey() {
@@ -638,39 +695,27 @@
       frameCanvas.height = hiddenVideo.videoHeight;
       frameCtx.drawImage(hiddenVideo, 0, 0);
 
-      setProgress(50, 'Sending to YOLOv8 detection...');
+      setProgress(50, 'Running body + head detection...');
 
-      // Convert canvas frame to base64 JPEG for the API
+      // Convert canvas frame to base64 JPEG
       const base64Image = frameCanvas.toDataURL('image/jpeg', 0.92).split(',')[1];
-
-      // Call Roboflow hosted inference API
       const confPct = Math.round(confThreshold * 100);
-      const apiURL  = `https://detect.roboflow.com/${RF_MODEL}/${RF_VERSION}`
-                    + `?api_key=${apiKey}&confidence=${confPct}&overlap=30&stroke=1`;
 
-      const response = await fetch(apiURL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: base64Image
-      });
+      // Run both models simultaneously
+      const [bodyPreds, headPreds] = await Promise.all([
+        runModel(MODELS[0].id, MODELS[0].version, base64Image, confPct),
+        runModel(MODELS[1].id, MODELS[1].version, base64Image, confPct),
+      ]);
 
-      if (!response.ok) {
-        let errMsg = `HTTP ${response.status}`;
-        try {
-          const errBody = await response.json();
-          errMsg = errBody.message || errBody.error || errMsg;
-        } catch(_) {}
-        if (response.status === 401 || response.status === 403) {
-          errMsg = 'Invalid API key — tap reload and re-enter your key';
-        }
-        throw new Error(errMsg);
-      }
+      setProgress(78, 'Merging detections...');
 
-      setProgress(80, 'Processing detections...');
-      const data    = await response.json();
+      // Tag each prediction with its source
+      bodyPreds.forEach(p => p._source = 'body');
+      headPreds.forEach(p => p._source = 'head');
 
-      // Roboflow returns predictions with x, y (center), width, height
-      const persons = (data.predictions || []);
+      // Merge and de-duplicate with NMS so the same person isn't counted twice
+      const merged = nms([...bodyPreds, ...headPreds], 0.35);
+      const persons = merged;
 
       if (persons.length === 0) {
         setProgress(100, 'No people detected — try lowering confidence or a clearer frame');
@@ -687,7 +732,7 @@
       drawResult(persons, winnerIdx);
 
       showProgress(false);
-      showResult(winnerIdx, persons.length);
+      showResult(winnerIdx, persons.length, bodyPreds.length, headPreds.length);
       launchConfetti();
 
       URL.revokeObjectURL(videoURL);
@@ -817,14 +862,17 @@
     document.getElementById('pickStatus').className      = 'step-status active';
   }
 
-  function showResult(winnerIdx, total) {
+  function showResult(winnerIdx, total, bodyCount, headCount) {
     document.getElementById('wbNum').textContent  = '#' + (winnerIdx + 1);
     document.getElementById('wbSub').textContent  = `Person ${winnerIdx + 1} of ${total} detected`;
     document.getElementById('winnerBadge').style.display = 'flex';
     document.getElementById('resultWrap').style.display  = 'flex';
 
     const pc = document.getElementById('peopleCount');
-    pc.innerHTML     = `<span>${total}</span> ${total === 1 ? 'person' : 'people'} detected in frame`;
+    const breakdown = bodyCount > 0 && headCount > 0
+      ? ` <span style="color:var(--muted);font-size:0.6rem">(${bodyCount} body + ${headCount} head detections merged)</span>`
+      : '';
+    pc.innerHTML     = `<span>${total}</span> ${total === 1 ? 'person' : 'people'} detected in frame${breakdown}`;
     pc.style.display = '';
 
     document.getElementById('resultStep').style.display = '';
