@@ -6,7 +6,6 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>CrowdPick</title>
-<!-- TF.js 3.21.0 + COCO-SSD from unpkg — most reliable combination for iOS Safari -->
 <script src="https://unpkg.com/@tensorflow/tfjs@3.21.0/dist/tf.min.js"></script>
 <script src="https://unpkg.com/@tensorflow-models/coco-ssd@2.2.2/dist/coco-ssd.min.js"></script>
 <style>
@@ -14,7 +13,7 @@
 
   :root {
     --bg: #0a0a0f;
-    --surface: #12121a;
+    --surface: #111118;
     --border: #1e1e2e;
     --accent: #ff3c5f;
     --accent2: #ffcc00;
@@ -30,202 +29,141 @@
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
   html, body {
-    height: 100%;
-    overflow: hidden;
+    min-height: 100%;
     background: var(--bg);
     color: var(--text);
     font-family: 'DM Mono', monospace;
     -webkit-tap-highlight-color: transparent;
     -webkit-touch-callout: none;
     user-select: none;
+    padding-top: var(--safe-top);
+    padding-bottom: var(--safe-bottom);
+    padding-left: var(--safe-left);
+    padding-right: var(--safe-right);
   }
 
-  #app {
-    position: fixed;
-    inset: 0;
-    display: flex;
-    flex-direction: column;
+  /* ── HEADER ── */
+  header {
+    padding: 1.5rem 1.5rem 1rem;
+    border-bottom: 1px solid var(--border);
   }
 
-  /* VIDEO LAYER */
-  #videoWrapper {
-    position: relative;
-    flex: 1;
-    background: #000;
-    overflow: hidden;
-  }
-
-  #video {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    opacity: 0;
-    transition: opacity 0.4s;
-  }
-
-  #video.active { opacity: 1; }
-
-  #canvas {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    pointer-events: none;
-  }
-
-  #placeholder {
-    position: absolute;
-    inset: 0;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 1.2rem;
-    color: var(--muted);
-    transition: opacity 0.3s;
-  }
-
-  #placeholder.hidden { opacity: 0; pointer-events: none; }
-
-  .ph-icon {
-    width: 72px; height: 72px;
-    border: 1.5px solid var(--border);
-    border-radius: 50%;
-    display: flex; align-items: center; justify-content: center;
-    animation: pulse-border 2.5s ease-in-out infinite;
-  }
-
-  @keyframes pulse-border {
-    0%, 100% { border-color: var(--border); }
-    50% { border-color: #333350; }
-  }
-
-  .ph-icon svg { width: 32px; height: 32px; opacity: 0.45; }
-  #placeholder p { font-size: 0.72rem; letter-spacing: 0.15em; text-transform: uppercase; }
-
-  #scanLine {
-    position: absolute;
-    left: 0; right: 0; height: 1.5px;
-    background: linear-gradient(90deg, transparent 0%, var(--accent) 50%, transparent 100%);
-    pointer-events: none;
-    z-index: 5;
-    display: none;
-    animation: scan 2.5s linear infinite;
-  }
-
-  @keyframes scan {
-    0%   { top: 0%;   opacity: 0; }
-    5%   { opacity: 0.7; }
-    95%  { opacity: 0.7; }
-    100% { top: 100%; opacity: 0; }
-  }
-
-  /* Overlaid badges */
-  #countBadge {
-    position: absolute;
-    top: calc(var(--safe-top) + 12px);
-    left: calc(var(--safe-left) + 12px);
-    background: rgba(0,0,0,0.6);
-    backdrop-filter: blur(6px);
-    -webkit-backdrop-filter: blur(6px);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 5px 14px;
-    display: none;
-    align-items: baseline;
-    gap: 6px;
-    z-index: 10;
-  }
-
-  #countBadge .num {
+  header h1 {
     font-family: 'Bebas Neue', sans-serif;
-    font-size: 2rem;
-    line-height: 1;
-    color: var(--text);
-    transition: color 0.2s;
+    font-size: 2.6rem;
+    letter-spacing: 0.08em;
   }
 
-  #countBadge .num.has { color: var(--accent2); }
-  #countBadge .lbl { font-size: 0.6rem; letter-spacing: 0.12em; color: var(--muted); text-transform: uppercase; }
+  header h1 span { color: var(--accent); }
 
-  #fpsBadge {
-    position: absolute;
-    top: calc(var(--safe-top) + 12px);
-    right: calc(var(--safe-right) + 12px);
-    background: rgba(0,0,0,0.6);
-    backdrop-filter: blur(6px);
-    -webkit-backdrop-filter: blur(6px);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 5px 10px;
-    font-size: 0.62rem;
-    letter-spacing: 0.1em;
+  header p {
+    font-size: 0.65rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
     color: var(--muted);
-    display: none;
-    z-index: 10;
+    margin-top: 2px;
   }
 
-  #fpsBadge span { color: var(--accent2); }
-
-  /* BOTTOM CONTROLS */
-  #controls {
-    position: absolute;
-    bottom: 0; left: 0; right: 0;
-    padding: 0 16px;
-    padding-bottom: calc(var(--safe-bottom) + 16px);
-    padding-left: calc(var(--safe-left) + 16px);
-    padding-right: calc(var(--safe-right) + 16px);
-    background: linear-gradient(to top, rgba(10,10,15,0.98) 0%, rgba(10,10,15,0.85) 75%, transparent 100%);
-    z-index: 20;
+  /* ── STEPS ── */
+  .steps {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
   }
 
-  #statusRow {
+  .step {
+    padding: 1.25rem 1.5rem;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .step-header {
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 14px 0 10px;
+    gap: 0.75rem;
   }
 
-  .dot {
-    width: 7px; height: 7px;
-    border-radius: 50%;
-    background: var(--muted);
-    flex-shrink: 0;
-    transition: background 0.3s;
+  .step-num {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.5rem;
+    color: var(--accent);
+    line-height: 1;
+    min-width: 1.5rem;
   }
 
-  .dot.loading { background: var(--accent2); animation: blink 0.5s ease-in-out infinite; }
-  .dot.live    { background: var(--accent);  animation: blink 1s ease-in-out infinite; }
-  .dot.ready   { background: var(--win); }
-
-  @keyframes blink {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.25; }
+  .step-title {
+    font-size: 0.72rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--text);
   }
 
-  #statusText {
-    font-size: 0.7rem;
+  .step-status {
+    margin-left: auto;
+    font-size: 0.62rem;
     letter-spacing: 0.1em;
     text-transform: uppercase;
     color: var(--muted);
-    flex: 1;
   }
 
-  #btnRow {
+  .step-status.done  { color: var(--win); }
+  .step-status.active { color: var(--accent2); }
+
+  /* ── UPLOAD ZONE ── */
+  #dropZone {
+    border: 1.5px dashed var(--border);
+    border-radius: 8px;
+    padding: 2rem 1rem;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
     display: flex;
-    gap: 10px;
-    margin-bottom: 10px;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.6rem;
   }
 
+  #dropZone:active { background: rgba(255,60,95,0.04); border-color: var(--accent); }
+  #dropZone.has-file { border-color: var(--win); border-style: solid; }
+
+  #dropZone svg { opacity: 0.35; }
+
+  #dropZone .dz-label {
+    font-size: 0.72rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  #dropZone .dz-filename {
+    font-size: 0.7rem;
+    color: var(--win);
+    letter-spacing: 0.06em;
+    display: none;
+  }
+
+  #fileInput { display: none; }
+
+  /* ── VIDEO PREVIEW (hidden, used for frame extraction) ── */
+  #hiddenVideo {
+    position: absolute;
+    left: -9999px;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  /* ── BUTTONS ── */
   .btn {
-    flex: 1;
-    height: 58px;
+    width: 100%;
+    height: 54px;
     border: none;
     border-radius: 8px;
     font-family: 'DM Mono', monospace;
-    font-size: 0.75rem;
+    font-size: 0.78rem;
     font-weight: 500;
     letter-spacing: 0.1em;
     text-transform: uppercase;
@@ -234,29 +172,109 @@
     -webkit-appearance: none;
     outline: none;
     touch-action: manipulation;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
   }
 
-  .btn:active { transform: scale(0.96); opacity: 0.8; }
-  .btn:disabled { opacity: 0.28; pointer-events: none; }
+  .btn:active  { transform: scale(0.97); opacity: 0.8; }
+  .btn:disabled { opacity: 0.25; pointer-events: none; }
 
-  .btn-cam  { background: var(--accent); color: #fff; }
-  .btn-pick { background: var(--win);    color: #000; font-size: 0.82rem; }
-  .btn-reset {
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-win     { background: var(--win);    color: #000; font-size: 0.85rem; }
+  .btn-ghost   {
     background: transparent;
-    color: var(--text);
+    color: var(--muted);
     border: 1px solid var(--border);
-    flex: 0 0 58px;
-    font-size: 1.3rem;
+    font-size: 0.7rem;
   }
 
-  #confRow {
+  /* ── RESULT CANVAS ── */
+  #resultWrap {
+    display: none;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  #resultCanvas {
+    width: 100%;
+    border-radius: 6px;
+    display: block;
+    border: 1px solid var(--border);
+  }
+
+  /* Winner badge */
+  #winnerBadge {
+    display: none;
+    background: var(--surface);
+    border: 1px solid var(--win);
+    border-radius: 8px;
+    padding: 1rem 1.25rem;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  #winnerBadge .wb-num {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 3.5rem;
+    color: var(--win);
+    line-height: 1;
+    text-shadow: 0 0 30px rgba(0,255,170,0.3);
+  }
+
+  #winnerBadge .wb-right {}
+  #winnerBadge .wb-label {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.6rem;
+    letter-spacing: 0.08em;
+    color: var(--text);
+  }
+  #winnerBadge .wb-sub {
+    font-size: 0.62rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+
+  /* ── PROGRESS / STATUS ── */
+  #progressWrap {
+    display: none;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  #progressBar {
+    height: 3px;
+    background: var(--border);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  #progressFill {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 2px;
+    width: 0%;
+    transition: width 0.3s;
+  }
+
+  #progressLabel {
+    font-size: 0.65rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  /* ── CONFIDENCE SLIDER ── */
+  .conf-row {
     display: flex;
     align-items: center;
     gap: 10px;
-    padding-bottom: 4px;
   }
 
-  #confRow label {
+  .conf-row label {
     font-size: 0.62rem;
     color: var(--muted);
     letter-spacing: 0.08em;
@@ -282,102 +300,24 @@
     cursor: pointer;
   }
 
-  #confVal {
+  .conf-val {
     font-size: 0.72rem;
     color: var(--text);
     min-width: 32px;
     text-align: right;
   }
 
-  /* WINNER OVERLAY */
-  #winnerOverlay {
-    position: fixed;
-    inset: 0;
-    z-index: 100;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: rgba(0,0,0,0.82);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.25s;
-  }
-
-  #winnerOverlay.show { opacity: 1; pointer-events: all; }
-
-  #winnerCard { text-align: center; padding: 0 2rem; }
-
-  .w-label {
-    font-family: 'Bebas Neue', sans-serif;
-    font-size: clamp(3.5rem, 18vw, 7rem);
-    letter-spacing: 0.06em;
-    color: var(--win);
-    line-height: 0.9;
-    text-shadow: 0 0 50px rgba(0,255,170,0.35);
-    animation: pop 0.45s cubic-bezier(0.34,1.56,0.64,1) both;
-  }
-
-  .w-num {
-    font-family: 'Bebas Neue', sans-serif;
-    font-size: clamp(6rem, 30vw, 12rem);
-    color: #fff;
-    line-height: 1;
-    animation: pop 0.45s 0.1s cubic-bezier(0.34,1.56,0.64,1) both;
-  }
-
-  .w-sub {
-    font-size: 0.75rem;
-    letter-spacing: 0.2em;
+  /* ── PEOPLE COUNT ── */
+  #peopleCount {
+    font-size: 0.68rem;
     color: var(--muted);
-    text-transform: uppercase;
-    margin-top: 0.3rem;
-    animation: fadeup 0.4s 0.25s both;
+    letter-spacing: 0.08em;
+    display: none;
   }
 
-  .w-close {
-    margin-top: 2.5rem;
-    padding: 16px 44px;
-    background: transparent;
-    border: 1px solid var(--border);
-    color: var(--muted);
-    font-family: 'DM Mono', monospace;
-    font-size: 0.72rem;
-    letter-spacing: 0.15em;
-    text-transform: uppercase;
-    border-radius: 6px;
-    cursor: pointer;
-    -webkit-appearance: none;
-    touch-action: manipulation;
-    animation: fadeup 0.4s 0.35s both;
-  }
+  #peopleCount span { color: var(--accent2); }
 
-  .w-close:active { border-color: var(--text); color: var(--text); }
-
-  @keyframes pop {
-    from { transform: scale(0.3); opacity: 0; }
-    to   { transform: scale(1);   opacity: 1; }
-  }
-  @keyframes fadeup {
-    from { opacity: 0; transform: translateY(8px); }
-    to   { opacity: 1; transform: translateY(0); }
-  }
-
-  /* Confetti */
-  .confetti {
-    position: fixed;
-    pointer-events: none;
-    z-index: 101;
-    border-radius: 2px;
-    animation: fall linear forwards;
-  }
-  @keyframes fall {
-    0%   { transform: translateY(-10px) rotate(0deg);   opacity: 1; }
-    100% { transform: translateY(105vh) rotate(600deg); opacity: 0; }
-  }
-
-  /* Loading overlay */
+  /* ── LOADING OVERLAY ── */
   #loadingOverlay {
     position: fixed;
     inset: 0;
@@ -402,7 +342,7 @@
   #loadingOverlay h1 span { color: var(--accent); }
 
   .spinner {
-    width: 44px; height: 44px;
+    width: 40px; height: 40px;
     border: 2px solid var(--border);
     border-top-color: var(--accent);
     border-radius: 50%;
@@ -412,10 +352,26 @@
   @keyframes spin { to { transform: rotate(360deg); } }
 
   #loadMsg {
-    font-size: 0.72rem;
+    font-size: 0.68rem;
     color: var(--muted);
     letter-spacing: 0.12em;
     text-transform: uppercase;
+    text-align: center;
+    padding: 0 2rem;
+  }
+
+  /* Confetti */
+  .confetti {
+    position: fixed;
+    pointer-events: none;
+    z-index: 300;
+    border-radius: 2px;
+    animation: fall linear forwards;
+  }
+
+  @keyframes fall {
+    0%   { transform: translateY(-10px) rotate(0deg);   opacity: 1; }
+    100% { transform: translateY(105vh) rotate(600deg); opacity: 0; }
   }
 </style>
 </head>
@@ -424,128 +380,134 @@
 <div id="loadingOverlay">
   <h1>CROWD<span>PICK</span></h1>
   <div class="spinner"></div>
-  <span id="loadMsg">Setting up TensorFlow...</span>
+  <span id="loadMsg">Loading AI model...</span>
 </div>
 
-<div id="app">
-  <div id="videoWrapper">
+<!-- Hidden video element for frame extraction — never shown to user -->
+<video id="hiddenVideo" muted playsinline webkit-playsinline></video>
+<!-- Off-screen canvas for grabbing the frame -->
+<canvas id="frameCanvas" style="display:none"></canvas>
 
-    <div id="placeholder">
-      <div class="ph-icon">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-          <circle cx="9" cy="7" r="4"/>
-          <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
-          <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-        </svg>
-      </div>
-      <p>Tap "Start Camera" to begin</p>
+<header>
+  <h1>CROWD<span>PICK</span></h1>
+  <p>// Random winner from your video</p>
+</header>
+
+<div class="steps">
+
+  <!-- STEP 1: Upload -->
+  <div class="step">
+    <div class="step-header">
+      <span class="step-num">1</span>
+      <span class="step-title">Record or upload a video of your group</span>
+      <span class="step-status" id="uploadStatus">Waiting</span>
     </div>
 
-    <div id="scanLine"></div>
-
-    <div id="countBadge">
-      <span class="num" id="countNum">0</span>
-      <span class="lbl">people</span>
+    <div id="dropZone" onclick="document.getElementById('fileInput').click()">
+      <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M15 10l-4 4-4-4"/>
+        <path d="M11 14V3"/>
+        <rect x="3" y="15" width="18" height="6" rx="2"/>
+      </svg>
+      <span class="dz-label">Tap to record or choose video</span>
+      <span class="dz-filename" id="dzFilename"></span>
     </div>
-
-    <div id="fpsBadge">SCAN <span id="fpsVal">--</span>/s</div>
-
-    <!-- webkit-playsinline is required for older iOS Safari -->
-    <video id="video" autoplay muted playsinline webkit-playsinline x5-playsinline></video>
-    <canvas id="canvas"></canvas>
+    <input type="file" id="fileInput" accept="video/*" capture="environment">
   </div>
 
-  <div id="controls">
-    <div id="statusRow">
-      <div class="dot" id="dot"></div>
-      <span id="statusText">Ready</span>
+  <!-- STEP 2: Settings -->
+  <div class="step">
+    <div class="step-header">
+      <span class="step-num">2</span>
+      <span class="step-title">Detection settings</span>
     </div>
-    <div id="btnRow">
-      <button class="btn btn-cam"   id="camBtn"   onclick="toggleCamera()">Start Camera</button>
-      <button class="btn btn-pick"  id="pickBtn"  onclick="pickWinner()" disabled>Pick Winner</button>
-      <button class="btn btn-reset" id="resetBtn" onclick="resetWinner()" style="display:none">↺</button>
-    </div>
-    <div id="confRow">
+    <div class="conf-row">
       <label>Confidence</label>
       <input type="range" id="confSlider" min="20" max="90" value="45" oninput="updateConf(this.value)">
-      <span id="confVal">45%</span>
+      <span class="conf-val" id="confVal">45%</span>
     </div>
   </div>
-</div>
 
-<div id="winnerOverlay">
-  <div id="winnerCard">
-    <div class="w-label">WINNER</div>
-    <div class="w-num"   id="winnerNum">#1</div>
-    <div class="w-sub">has been selected</div>
-    <button class="w-close" onclick="closeWinner()">Dismiss</button>
+  <!-- STEP 3: Pick -->
+  <div class="step">
+    <div class="step-header">
+      <span class="step-num">3</span>
+      <span class="step-title">Pick a winner</span>
+      <span class="step-status" id="pickStatus"></span>
+    </div>
+
+    <div id="progressWrap">
+      <div id="progressBar"><div id="progressFill"></div></div>
+      <span id="progressLabel">Preparing...</span>
+    </div>
+
+    <button class="btn btn-primary" id="pickBtn" onclick="runPick()" disabled>
+      🎲 Pick Random Winner
+    </button>
   </div>
+
+  <!-- STEP 4: Result -->
+  <div class="step" id="resultStep" style="display:none">
+    <div class="step-header">
+      <span class="step-num">4</span>
+      <span class="step-title">Result</span>
+      <span class="step-status done">Done</span>
+    </div>
+
+    <div id="winnerBadge">
+      <span class="wb-num" id="wbNum">#1</span>
+      <div class="wb-right">
+        <div class="wb-label">WINNER</div>
+        <div class="wb-sub" id="wbSub">Person 1 of 1 detected</div>
+      </div>
+    </div>
+
+    <div id="resultWrap">
+      <canvas id="resultCanvas"></canvas>
+      <span id="peopleCount"></span>
+    </div>
+
+    <button class="btn btn-ghost" onclick="reset()" style="margin-top:0.25rem">
+      ↺ Start over
+    </button>
+  </div>
+
 </div>
 
 <script>
   let model         = null;
-  let stream        = null;
-  let cameraActive  = false;
-  let loopRunning   = false;
-  let detectedPersons = [];
-  let winnerIndex   = null;
+  let videoFile     = null;
   let confThreshold = 0.45;
 
-  // FPS tracking
-  let frameCount = 0;
-  let fpsTimer   = Date.now();
+  const hiddenVideo  = document.getElementById('hiddenVideo');
+  const frameCanvas  = document.getElementById('frameCanvas');
+  const frameCtx     = frameCanvas.getContext('2d');
+  const resultCanvas = document.getElementById('resultCanvas');
+  const resultCtx    = resultCanvas.getContext('2d');
 
-  const video       = document.getElementById('video');
-  const canvas      = document.getElementById('canvas');
-  const ctx         = canvas.getContext('2d');
-  const dot         = document.getElementById('dot');
-  const statusText  = document.getElementById('statusText');
-  const countNum    = document.getElementById('countNum');
-  const countBadge  = document.getElementById('countBadge');
-  const fpsBadge    = document.getElementById('fpsBadge');
-  const fpsVal      = document.getElementById('fpsVal');
-  const camBtn      = document.getElementById('camBtn');
-  const pickBtn     = document.getElementById('pickBtn');
-  const resetBtn    = document.getElementById('resetBtn');
-  const placeholder = document.getElementById('placeholder');
-  const scanLine    = document.getElementById('scanLine');
-
-  // ── Model ────────────────────────────────────────────────────
+  // ── Model load ───────────────────────────────────────────────
   async function loadModel() {
     try {
-      document.getElementById('loadMsg').textContent = 'Setting up TensorFlow...';
+      setLoadMsg('Setting up TensorFlow...');
+      await tf.setBackend('webgl');
+      await tf.ready();
 
-      // On iOS Safari, explicitly set the backend to webgl before loading anything.
-      // If webgl fails (older devices), fall back to cpu so we at least get an error message.
-      try {
-        await tf.setBackend('webgl');
-        await tf.ready();
-      } catch(e) {
-        await tf.setBackend('cpu');
-        await tf.ready();
-      }
-
-      document.getElementById('loadMsg').textContent = 'Loading detection model...';
-
-      // mobilenet_v1 loads more reliably on iOS Safari than lite_mobilenet_v2
+      setLoadMsg('Loading detection model...');
       model = await cocoSsd.load({ base: 'mobilenet_v1' });
 
-      document.getElementById('loadMsg').textContent = 'Warming up...';
-
-      // Warm up: model.detect expects a 3D tensor [height, width, 3] — not a 4D batch.
-      // This pre-initialises WebGL shaders so the first real frame doesn't freeze.
+      setLoadMsg('Warming up...');
       const dummy = tf.zeros([300, 300, 3], 'int32');
       await model.detect(dummy);
       dummy.dispose();
 
       hideLoader();
-      setStatus('ready', 'Ready — tap Start Camera');
     } catch(e) {
-      document.getElementById('loadMsg').textContent = 'Load failed: ' + e.message + ' — refresh to retry';
-      console.error('Model load error:', e);
+      setLoadMsg('Load failed: ' + e.message);
+      console.error(e);
     }
   }
+
+  function setLoadMsg(t) { document.getElementById('loadMsg').textContent = t; }
 
   function hideLoader() {
     const el = document.getElementById('loadingOverlay');
@@ -553,253 +515,260 @@
     setTimeout(() => el.remove(), 500);
   }
 
-  // ── Camera ───────────────────────────────────────────────────
-  async function toggleCamera() {
-    cameraActive ? stopCamera() : await startCamera();
-  }
+  // ── File input ───────────────────────────────────────────────
+  document.getElementById('fileInput').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    videoFile = file;
 
-  async function startCamera() {
+    // Show filename
+    const dz = document.getElementById('dropZone');
+    dz.classList.add('has-file');
+    const label = dz.querySelector('.dz-label');
+    const fname = document.getElementById('dzFilename');
+    label.style.display = 'none';
+    fname.style.display = '';
+    fname.textContent   = file.name;
+
+    document.getElementById('uploadStatus').textContent = 'Ready';
+    document.getElementById('uploadStatus').classList.add('done');
+    document.getElementById('pickBtn').disabled = false;
+  });
+
+  // ── Main pick flow ───────────────────────────────────────────
+  async function runPick() {
+    if (!videoFile || !model) return;
+
+    document.getElementById('pickBtn').disabled = true;
+    document.getElementById('resultStep').style.display = 'none';
+    showProgress(true);
+    setProgress(5, 'Loading video...');
+
     try {
-      stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: { ideal: 'environment' }, // rear camera on mobile
-          width:  { ideal: 1280 },
-          height: { ideal: 720 }
-        },
-        audio: false
-      });
+      // 1. Load video into hidden element
+      const videoURL = URL.createObjectURL(videoFile);
+      await loadVideoMeta(hiddenVideo, videoURL);
+      setProgress(20, 'Choosing random frame...');
 
-      video.srcObject = stream;
+      // 2. Pick a random timestamp (avoid first/last 5% to skip fades/blurs)
+      const duration = hiddenVideo.duration;
+      const margin   = duration * 0.05;
+      const randomT  = margin + Math.random() * (duration - margin * 2);
 
-      // iOS Safari: do NOT await play() — it can deadlock when called right after
-      // setting srcObject. Instead, call it non-blocking and let the 'playing'
-      // event tell us when frames are actually flowing.
-      video.play().catch(() => {});
+      // 3. Seek to that timestamp
+      await seekVideo(hiddenVideo, randomT);
+      setProgress(40, 'Capturing frame...');
 
-      // Show UI immediately
-      video.classList.add('active');
-      placeholder.classList.add('hidden');
-      scanLine.style.display = '';
-      countBadge.style.display = 'flex';
-      fpsBadge.style.display   = '';
-      camBtn.textContent = 'Stop Camera';
-      cameraActive = true;
-      setStatus('live', 'Starting camera...');
+      // 4. Draw that frame onto the off-screen canvas
+      frameCanvas.width  = hiddenVideo.videoWidth;
+      frameCanvas.height = hiddenVideo.videoHeight;
+      frameCtx.drawImage(hiddenVideo, 0, 0);
 
-      // Wait for the video to actually be playing before starting detection.
-      // 'playing' is more reliable than 'loadedmetadata' on iOS Safari.
-      video.addEventListener('playing', onVideoPlaying, { once: true });
+      setProgress(55, 'Detecting people...');
 
-      // Fallback: if 'playing' never fires within 5s, try polling
-      const fallbackTimer = setTimeout(() => {
-        video.removeEventListener('playing', onVideoPlaying);
-        pollUntilReady();
-      }, 5000);
+      // 5. Run detection on the captured frame (ImageData from canvas)
+      const predictions = await model.detect(frameCanvas);
+      const persons     = predictions.filter(p => p.class === 'person' && p.score >= confThreshold);
 
-      function onVideoPlaying() {
-        clearTimeout(fallbackTimer);
-        resizeCanvas();
-        setStatus('live', 'Scanning...');
-        startLoop();
+      if (persons.length === 0) {
+        setProgress(100, 'No people detected — try lowering confidence or a different video');
+        document.getElementById('pickBtn').disabled = false;
+        URL.revokeObjectURL(videoURL);
+        return;
       }
+
+      setProgress(80, 'Picking winner...');
+
+      // 6. Pick random winner
+      const winnerIdx = Math.floor(Math.random() * persons.length);
+
+      setProgress(95, 'Drawing result...');
+
+      // 7. Draw annotated result
+      drawResult(persons, winnerIdx);
+
+      // 8. Show result
+      showProgress(false);
+      showResult(winnerIdx, persons.length);
+      launchConfetti();
+
+      URL.revokeObjectURL(videoURL);
 
     } catch(e) {
-      const msg = e.name === 'NotAllowedError'
-        ? 'Camera permission denied'
-        : 'Camera error: ' + e.message;
-      setStatus('', msg);
+      setProgress(100, 'Error: ' + e.message);
+      console.error(e);
+      document.getElementById('pickBtn').disabled = false;
     }
   }
 
-  // Fallback: poll until video has real dimensions, then start
-  function pollUntilReady() {
-    const check = setInterval(() => {
-      if (video.videoWidth > 0 && video.videoHeight > 0) {
-        clearInterval(check);
-        resizeCanvas();
-        setStatus('live', 'Scanning...');
-        startLoop();
+  // ── Video helpers ────────────────────────────────────────────
+
+  // Load video and wait for metadata (duration, dimensions)
+  function loadVideoMeta(videoEl, src) {
+    return new Promise((resolve, reject) => {
+      videoEl.src = src;
+      videoEl.load();
+      const onMeta = () => { cleanup(); resolve(); };
+      const onErr  = (e) => { cleanup(); reject(new Error('Video load failed: ' + e.message)); };
+      const cleanup = () => {
+        videoEl.removeEventListener('loadedmetadata', onMeta);
+        videoEl.removeEventListener('error', onErr);
+      };
+      videoEl.addEventListener('loadedmetadata', onMeta);
+      videoEl.addEventListener('error', onErr);
+      // iOS sometimes needs a play() call to trigger metadata loading
+      videoEl.play().catch(() => {});
+      setTimeout(() => videoEl.pause(), 100);
+    });
+  }
+
+  // Seek to a specific time and wait for the frame to be ready
+  function seekVideo(videoEl, time) {
+    return new Promise((resolve, reject) => {
+      // Pause first
+      videoEl.pause();
+      videoEl.currentTime = time;
+      const onSeeked = () => { cleanup(); resolve(); };
+      const onErr    = () => { cleanup(); reject(new Error('Seek failed')); };
+      const cleanup  = () => {
+        videoEl.removeEventListener('seeked', onSeeked);
+        videoEl.removeEventListener('error', onErr);
+      };
+      videoEl.addEventListener('seeked', onSeeked);
+      videoEl.addEventListener('error', onErr);
+      // Fallback: if seeked never fires in 4s, try anyway
+      setTimeout(() => { cleanup(); resolve(); }, 4000);
+    });
+  }
+
+  // ── Drawing ──────────────────────────────────────────────────
+  function drawResult(persons, winnerIdx) {
+    // Copy the captured frame onto the result canvas
+    resultCanvas.width  = frameCanvas.width;
+    resultCanvas.height = frameCanvas.height;
+    resultCtx.drawImage(frameCanvas, 0, 0);
+
+    // Dim non-winners slightly
+    persons.forEach((p, i) => {
+      if (i !== winnerIdx) {
+        const [x, y, w, h] = p.bbox;
+        resultCtx.fillStyle = 'rgba(0,0,0,0.35)';
+        resultCtx.fillRect(x, y, w, h);
       }
-    }, 200);
-    // Give up after 15s
-    setTimeout(() => clearInterval(check), 15000);
-  }
+    });
 
-  function stopCamera() {
-    stopLoop();
-    if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
-    video.srcObject = null;
-    video.classList.remove('active');
-    placeholder.classList.remove('hidden');
-    scanLine.style.display   = 'none';
-    countBadge.style.display = 'none';
-    fpsBadge.style.display   = 'none';
-    camBtn.textContent = 'Start Camera';
-    cameraActive = false;
-    detectedPersons = [];
-    winnerIndex = null;
-    pickBtn.disabled = true;
-    resetBtn.style.display = 'none';
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    setStatus('ready', 'Camera stopped');
-    countNum.textContent = '0';
-    countNum.classList.remove('has');
-  }
-
-  // ── Detection loop ───────────────────────────────────────────
-  // Continuous chained-await loop — runs as fast as the model can go.
-  // No setInterval means no queuing of frames; each detection finishes
-  // before the next one starts, which is safest on constrained hardware.
-  function startLoop() {
-    if (loopRunning) return;
-    loopRunning = true;
-    loop();
-  }
-
-  function stopLoop() { loopRunning = false; }
-
-  async function loop() {
-    while (loopRunning) {
-      // iOS safety checks: video must be playing with real dimensions and not ended
-      const videoReady = video.readyState >= 2
-        && video.videoWidth > 0
-        && video.videoHeight > 0
-        && !video.paused
-        && !video.ended;
-
-      if (videoReady) {
-        try {
-          // tf.tidy can't wrap async calls — manually track & dispose tensors instead
-          const preds = await model.detect(video);
-          if (!loopRunning) break;
-
-          const persons = preds.filter(p => p.class === 'person' && p.score >= confThreshold);
-          detectedPersons = persons;
-
-          drawDetections(persons);
-          updateCount(persons.length);
-
-          if (winnerIndex === null) {
-            pickBtn.disabled = persons.length === 0;
-          }
-
-          // FPS counter
-          frameCount++;
-          const now = Date.now();
-          if (now - fpsTimer >= 1000) {
-            fpsVal.textContent = frameCount;
-            frameCount = 0;
-            fpsTimer   = now;
-          }
-
-          // Yield to the browser event loop briefly so UI stays responsive
-          await sleep(0);
-
-        } catch(e) {
-          console.warn('Detection error:', e.message);
-          await sleep(200);
-        }
-      } else {
-        await sleep(100);
-      }
-    }
-  }
-
-  const sleep = ms => new Promise(r => setTimeout(r, ms));
-
-  // ── Canvas ───────────────────────────────────────────────────
-  function resizeCanvas() {
-    if (video.videoWidth && video.videoHeight) {
-      canvas.width  = video.videoWidth;
-      canvas.height = video.videoHeight;
-    }
-  }
-
-  function drawDetections(persons) {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
+    // Draw all boxes
     persons.forEach((p, i) => {
       const [x, y, w, h] = p.bbox;
-      const isWinner = winnerIndex === i;
+      const isWinner = i === winnerIdx;
       const color    = isWinner ? '#00ffaa' : '#ff3c5f';
 
-      ctx.globalAlpha = isWinner ? 1 : 0.88;
-      ctx.strokeStyle = color;
-      ctx.lineWidth   = isWinner ? 2.5 : 1.5;
-      ctx.strokeRect(x, y, w, h);
+      resultCtx.globalAlpha = isWinner ? 1 : 0.7;
+      resultCtx.strokeStyle = color;
+      resultCtx.lineWidth   = isWinner ? 4 : 2;
+      resultCtx.strokeRect(x, y, w, h);
 
-      // Glow on winner
+      // Winner glow
       if (isWinner) {
-        ctx.shadowColor = '#00ffaa';
-        ctx.shadowBlur  = 20;
-        ctx.strokeRect(x, y, w, h);
-        ctx.shadowBlur  = 0;
+        resultCtx.shadowColor = '#00ffaa';
+        resultCtx.shadowBlur  = 24;
+        resultCtx.strokeRect(x, y, w, h);
+        resultCtx.shadowBlur  = 0;
       }
 
       // Corner brackets
-      const cs = Math.min(20, w * 0.18, h * 0.12);
-      ctx.lineWidth = isWinner ? 3.5 : 2.5;
-      ctx.beginPath();
-      ctx.moveTo(x, y + cs);       ctx.lineTo(x, y);         ctx.lineTo(x + cs, y);
-      ctx.moveTo(x + w - cs, y);   ctx.lineTo(x + w, y);     ctx.lineTo(x + w, y + cs);
-      ctx.moveTo(x, y + h - cs);   ctx.lineTo(x, y + h);     ctx.lineTo(x + cs, y + h);
-      ctx.moveTo(x + w - cs, y+h); ctx.lineTo(x + w, y + h); ctx.lineTo(x + w, y + h - cs);
-      ctx.stroke();
+      const cs = Math.min(22, w * 0.15, h * 0.1);
+      resultCtx.lineWidth = isWinner ? 5 : 3;
+      resultCtx.beginPath();
+      resultCtx.moveTo(x, y + cs);        resultCtx.lineTo(x, y);          resultCtx.lineTo(x + cs, y);
+      resultCtx.moveTo(x + w - cs, y);    resultCtx.lineTo(x + w, y);      resultCtx.lineTo(x + w, y + cs);
+      resultCtx.moveTo(x, y + h - cs);    resultCtx.lineTo(x, y + h);      resultCtx.lineTo(x + cs, y + h);
+      resultCtx.moveTo(x + w - cs, y + h);resultCtx.lineTo(x + w, y + h);  resultCtx.lineTo(x + w, y + h - cs);
+      resultCtx.stroke();
 
       // Label
       const label    = isWinner ? '★  WINNER' : `#${i + 1}`;
-      const fontSize = isWinner ? 15 : 13;
-      ctx.font       = `500 ${fontSize}px 'DM Mono', monospace`;
-      const tw = ctx.measureText(label).width;
-      const lh = fontSize + 8;
+      const fontSize = Math.max(13, Math.min(22, h * 0.07));
+      resultCtx.font = `600 ${fontSize}px 'DM Mono', monospace`;
+      const tw = resultCtx.measureText(label).width;
+      const lh = fontSize + 10;
 
-      ctx.globalAlpha = 0.9;
-      ctx.fillStyle   = color;
-      ctx.fillRect(x, y - lh, tw + 12, lh);
-      ctx.fillStyle   = isWinner ? '#000' : '#fff';
-      ctx.globalAlpha = 1;
-      ctx.fillText(label, x + 6, y - 5);
+      resultCtx.globalAlpha = isWinner ? 0.95 : 0.8;
+      resultCtx.fillStyle   = color;
+      resultCtx.fillRect(x, y - lh, tw + 14, lh);
+      resultCtx.fillStyle   = isWinner ? '#000' : '#fff';
+      resultCtx.globalAlpha = 1;
+      resultCtx.fillText(label, x + 7, y - 6);
     });
 
-    ctx.globalAlpha = 1;
-    ctx.shadowBlur  = 0;
+    resultCtx.globalAlpha = 1;
+    resultCtx.shadowBlur  = 0;
   }
 
-  function updateCount(n) {
-    countNum.textContent = n;
-    countNum.classList.toggle('has', n > 0);
+  // ── UI helpers ───────────────────────────────────────────────
+  function showProgress(visible) {
+    document.getElementById('progressWrap').style.display = visible ? 'flex' : 'none';
   }
 
-  // ── Winner ───────────────────────────────────────────────────
-  function pickWinner() {
-    if (detectedPersons.length === 0) return;
-
-    // Instant pick — no cycling animation
-    winnerIndex = Math.floor(Math.random() * detectedPersons.length);
-    drawDetections(detectedPersons);
-    pickBtn.disabled = true;
-    resetBtn.style.display = '';
-
-    document.getElementById('winnerNum').textContent = '#' + (winnerIndex + 1);
-    document.getElementById('winnerOverlay').classList.add('show');
-    launchConfetti();
+  function setProgress(pct, label) {
+    document.getElementById('progressFill').style.width  = pct + '%';
+    document.getElementById('progressLabel').textContent = label;
+    document.getElementById('pickStatus').textContent    = label;
+    document.getElementById('pickStatus').className      = 'step-status active';
   }
 
-  function closeWinner() {
-    document.getElementById('winnerOverlay').classList.remove('show');
+  function showResult(winnerIdx, total) {
+    // Winner badge
+    document.getElementById('wbNum').textContent  = '#' + (winnerIdx + 1);
+    document.getElementById('wbSub').textContent  = `Person ${winnerIdx + 1} of ${total} detected`;
+    document.getElementById('winnerBadge').style.display = 'flex';
+
+    // Canvas
+    document.getElementById('resultWrap').style.display = 'flex';
+
+    // Count note
+    const pc = document.getElementById('peopleCount');
+    pc.innerHTML = `<span>${total}</span> ${total === 1 ? 'person' : 'people'} detected in frame`;
+    pc.style.display = '';
+
+    // Show result step
+    document.getElementById('resultStep').style.display = '';
+
+    document.getElementById('pickStatus').textContent = 'Done';
+    document.getElementById('pickStatus').className   = 'step-status done';
+
+    // Scroll to result
+    document.getElementById('resultStep').scrollIntoView({ behavior: 'smooth' });
+
+    // Re-enable pick for another attempt
+    document.getElementById('pickBtn').disabled  = false;
+    document.getElementById('pickBtn').textContent = '🎲 Pick Again (new random frame)';
   }
 
-  function resetWinner() {
-    winnerIndex = null;
-    drawDetections(detectedPersons);
-    pickBtn.disabled = detectedPersons.length === 0;
-    resetBtn.style.display = 'none';
+  function reset() {
+    videoFile = null;
+    document.getElementById('fileInput').value  = '';
+    document.getElementById('dropZone').classList.remove('has-file');
+    document.getElementById('dropZone').querySelector('.dz-label').style.display = '';
+    document.getElementById('dzFilename').style.display = 'none';
+    document.getElementById('uploadStatus').textContent = 'Waiting';
+    document.getElementById('uploadStatus').className   = 'step-status';
+    document.getElementById('pickBtn').disabled = true;
+    document.getElementById('pickBtn').textContent = '🎲 Pick Random Winner';
+    document.getElementById('resultStep').style.display = 'none';
+    document.getElementById('pickStatus').textContent   = '';
+    showProgress(false);
+    hiddenVideo.src = '';
   }
 
-  // ── Confetti ─────────────────────────────────────────────────
+  function updateConf(v) {
+    confThreshold = v / 100;
+    document.getElementById('confVal').textContent = v + '%';
+  }
+
   function launchConfetti() {
     const colors = ['#ff3c5f','#ffcc00','#00ffaa','#ffffff','#ff9940','#a78bfa'];
-    for (let i = 0; i < 65; i++) {
+    for (let i = 0; i < 60; i++) {
       const el   = document.createElement('div');
       el.className = 'confetti';
       const size = 5 + Math.random() * 7;
@@ -808,35 +777,15 @@
         width:${size}px;height:${size}px;
         background:${colors[Math.floor(Math.random()*colors.length)]};
         border-radius:${Math.random()>0.45?'50%':'1px'};
-        animation-duration:${1.8+Math.random()*2.2}s;
-        animation-delay:${Math.random()*0.6}s;
+        animation-duration:${1.8+Math.random()*2}s;
+        animation-delay:${Math.random()*0.5}s;
       `;
       document.body.appendChild(el);
-      setTimeout(() => el.remove(), 5000);
+      setTimeout(() => el.remove(), 4000);
     }
   }
 
-  // ── Settings ─────────────────────────────────────────────────
-  function updateConf(v) {
-    confThreshold = v / 100;
-    document.getElementById('confVal').textContent = v + '%';
-  }
-
-  function setStatus(state, text) {
-    dot.className    = 'dot ' + state;
-    statusText.textContent = text;
-  }
-
-  // ── iOS: resume loop when returning to foreground ─────────────
-  document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible' && cameraActive && !loopRunning) {
-      startLoop();
-    }
-  });
-
-  window.addEventListener('resize', () => { if (video.videoWidth) resizeCanvas(); });
-
-  // Start loading immediately
+  // ── Init ─────────────────────────────────────────────────────
   loadModel();
 </script>
 </body>
