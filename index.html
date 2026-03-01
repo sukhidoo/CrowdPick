@@ -6,8 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>CrowdPick</title>
-<script src="https://unpkg.com/@tensorflow/tfjs@3.21.0/dist/tf.min.js"></script>
-<script src="https://unpkg.com/@tensorflow-models/coco-ssd@2.2.2/dist/coco-ssd.min.js"></script>
+
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@400;500&display=swap');
 
@@ -360,6 +359,82 @@
     padding: 0 2rem;
   }
 
+  #apiSetup {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.85rem;
+    width: 100%;
+    max-width: 320px;
+    padding: 0 1.5rem;
+  }
+
+  #apiInstructions {
+    font-size: 0.68rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    text-align: center;
+  }
+
+  #apiKeyInput {
+    width: 100%;
+    padding: 0.85rem 1rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 0.75rem;
+    letter-spacing: 0.05em;
+    outline: none;
+    -webkit-appearance: none;
+    text-align: center;
+  }
+
+  #apiKeyInput:focus { border-color: var(--accent); }
+
+  #apiSubmitBtn {
+    width: 100%;
+    height: 50px;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.78rem;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    cursor: pointer;
+    -webkit-appearance: none;
+    touch-action: manipulation;
+  }
+
+  #apiSubmitBtn:active { opacity: 0.8; }
+
+  #getKeyLink {
+    font-size: 0.62rem;
+    color: var(--muted);
+    letter-spacing: 0.08em;
+    text-decoration: none;
+    text-transform: uppercase;
+  }
+
+  #getKeyLink:hover { color: var(--text); }
+
+  /* Spinner (reused for API call progress) */
+  .spinner {
+    width: 40px; height: 40px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    display: none;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
   /* Confetti */
   .confetti {
     position: fixed;
@@ -379,8 +454,14 @@
 
 <div id="loadingOverlay">
   <h1>CROWD<span>PICK</span></h1>
-  <div class="spinner"></div>
-  <span id="loadMsg">Loading AI model...</span>
+  <div class="spinner" id="loadSpinner"></div>
+  <div id="apiSetup">
+    <p id="apiInstructions">Enter your Roboflow API key to get started</p>
+    <input type="text" id="apiKeyInput" placeholder="Paste API key here..." autocomplete="off" autocorrect="off" spellcheck="false">
+    <button id="apiSubmitBtn" onclick="submitApiKey()">Continue</button>
+    <a href="https://app.roboflow.com" target="_blank" id="getKeyLink">Get a free API key at roboflow.com →</a>
+  </div>
+  <span id="loadMsg"></span>
 </div>
 
 <!-- Hidden video element for frame extraction — never shown to user -->
@@ -475,9 +556,9 @@
 </div>
 
 <script>
-  let model         = null;
+  let apiKey        = null;
   let videoFile     = null;
-  let confThreshold = 0.45;
+  let confThreshold = 0.20; // Roboflow confidence (0–100 scale, sent as integer)
 
   const hiddenVideo  = document.getElementById('hiddenVideo');
   const frameCanvas  = document.getElementById('frameCanvas');
@@ -485,34 +566,34 @@
   const resultCanvas = document.getElementById('resultCanvas');
   const resultCtx    = resultCanvas.getContext('2d');
 
-  // ── Model load ───────────────────────────────────────────────
-  async function loadModel() {
-    try {
-      setLoadMsg('Setting up TensorFlow...');
-      await tf.setBackend('webgl');
-      await tf.ready();
+  // Roboflow crowd detection model — YOLOv8 trained on dense crowd scenes
+  // Model: "crowd-counting" universe model, accurate up to 100+ people
+  const RF_MODEL   = 'people-detection-general';
+  const RF_VERSION = '3';
 
-      setLoadMsg('Loading detection model...');
-      model = await cocoSsd.load({ base: 'mobilenet_v1' });
-
-      setLoadMsg('Warming up...');
-      const dummy = tf.zeros([300, 300, 3], 'int32');
-      await model.detect(dummy);
-      dummy.dispose();
-
-      hideLoader();
-    } catch(e) {
-      setLoadMsg('Load failed: ' + e.message);
-      console.error(e);
-    }
+  // ── API Key setup ────────────────────────────────────────────
+  function submitApiKey() {
+    const val = document.getElementById('apiKeyInput').value.trim();
+    if (!val) return;
+    apiKey = val;
+    // Save to sessionStorage so refresh doesn't require re-entry
+    try { sessionStorage.setItem('rf_api_key', val); } catch(_) {}
+    hideLoader();
   }
 
-  function setLoadMsg(t) { document.getElementById('loadMsg').textContent = t; }
+  // Allow pressing Enter in the input
+  document.getElementById('apiKeyInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') submitApiKey();
+  });
 
   function hideLoader() {
     const el = document.getElementById('loadingOverlay');
     el.classList.add('hide');
     setTimeout(() => el.remove(), 500);
+  }
+
+  function setLoadMsg(t) {
+    document.getElementById('loadMsg').textContent = t;
   }
 
   // ── File input ───────────────────────────────────────────────
@@ -521,12 +602,10 @@
     if (!file) return;
     videoFile = file;
 
-    // Show filename
     const dz = document.getElementById('dropZone');
     dz.classList.add('has-file');
-    const label = dz.querySelector('.dz-label');
+    dz.querySelector('.dz-label').style.display = 'none';
     const fname = document.getElementById('dzFilename');
-    label.style.display = 'none';
     fname.style.display = '';
     fname.textContent   = file.name;
 
@@ -537,57 +616,69 @@
 
   // ── Main pick flow ───────────────────────────────────────────
   async function runPick() {
-    if (!videoFile || !model) return;
+    if (!videoFile || !apiKey) return;
 
     document.getElementById('pickBtn').disabled = true;
     document.getElementById('resultStep').style.display = 'none';
     showProgress(true);
-    setProgress(5, 'Loading video...');
 
     try {
-      // 1. Load video into hidden element
+      setProgress(5, 'Loading video...');
       const videoURL = URL.createObjectURL(videoFile);
       await loadVideoMeta(hiddenVideo, videoURL);
-      setProgress(20, 'Choosing random frame...');
 
-      // 2. Pick a random timestamp (avoid first/last 5% to skip fades/blurs)
+      setProgress(20, 'Choosing random frame...');
       const duration = hiddenVideo.duration;
       const margin   = duration * 0.05;
       const randomT  = margin + Math.random() * (duration - margin * 2);
-
-      // 3. Seek to that timestamp
       await seekVideo(hiddenVideo, randomT);
-      setProgress(40, 'Capturing frame...');
 
-      // 4. Draw that frame onto the off-screen canvas
+      setProgress(38, 'Capturing frame...');
       frameCanvas.width  = hiddenVideo.videoWidth;
       frameCanvas.height = hiddenVideo.videoHeight;
       frameCtx.drawImage(hiddenVideo, 0, 0);
 
-      setProgress(55, 'Detecting people...');
+      setProgress(50, 'Sending to YOLOv8 detection...');
 
-      // 5. Run detection on the captured frame (ImageData from canvas)
-      const predictions = await model.detect(frameCanvas);
-      const persons     = predictions.filter(p => p.class === 'person' && p.score >= confThreshold);
+      // Convert canvas frame to base64 JPEG for the API
+      const base64Image = frameCanvas.toDataURL('image/jpeg', 0.92).split(',')[1];
+
+      // Call Roboflow inference API
+      const confPct = Math.round(confThreshold * 100);
+      const apiURL  = `https://detect.roboflow.com/${RF_MODEL}/${RF_VERSION}`
+                    + `?api_key=${apiKey}&confidence=${confPct}&overlap=30`;
+
+      const response = await fetch(apiURL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: base64Image
+      });
+
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.message || `API error ${response.status}`);
+      }
+
+      setProgress(80, 'Processing detections...');
+      const data    = await response.json();
+
+      // Roboflow returns predictions with x, y (center), width, height
+      const persons = (data.predictions || []);
 
       if (persons.length === 0) {
-        setProgress(100, 'No people detected — try lowering confidence or a different video');
+        setProgress(100, 'No people detected — try lowering confidence or a clearer frame');
         document.getElementById('pickBtn').disabled = false;
         URL.revokeObjectURL(videoURL);
         return;
       }
 
-      setProgress(80, 'Picking winner...');
+      setProgress(92, `Found ${persons.length} people — picking winner...`);
 
-      // 6. Pick random winner
       const winnerIdx = Math.floor(Math.random() * persons.length);
 
-      setProgress(95, 'Drawing result...');
-
-      // 7. Draw annotated result
+      setProgress(98, 'Drawing result...');
       drawResult(persons, winnerIdx);
 
-      // 8. Show result
       showProgress(false);
       showResult(winnerIdx, persons.length);
       launchConfetti();
@@ -595,110 +686,112 @@
       URL.revokeObjectURL(videoURL);
 
     } catch(e) {
-      setProgress(100, 'Error: ' + e.message);
+      // If it's an auth error, let them re-enter their key
+      if (e.message && (e.message.includes('401') || e.message.includes('403') || e.message.toLowerCase().includes('api key'))) {
+        setProgress(100, 'Invalid API key — please reload and try again');
+      } else {
+        setProgress(100, 'Error: ' + e.message);
+      }
       console.error(e);
       document.getElementById('pickBtn').disabled = false;
     }
   }
 
   // ── Video helpers ────────────────────────────────────────────
-
-  // Load video and wait for metadata (duration, dimensions)
   function loadVideoMeta(videoEl, src) {
     return new Promise((resolve, reject) => {
       videoEl.src = src;
       videoEl.load();
       const onMeta = () => { cleanup(); resolve(); };
-      const onErr  = (e) => { cleanup(); reject(new Error('Video load failed: ' + e.message)); };
+      const onErr  = () => { cleanup(); reject(new Error('Video load failed')); };
       const cleanup = () => {
         videoEl.removeEventListener('loadedmetadata', onMeta);
         videoEl.removeEventListener('error', onErr);
       };
       videoEl.addEventListener('loadedmetadata', onMeta);
       videoEl.addEventListener('error', onErr);
-      // iOS sometimes needs a play() call to trigger metadata loading
       videoEl.play().catch(() => {});
       setTimeout(() => videoEl.pause(), 100);
+      setTimeout(() => { cleanup(); resolve(); }, 6000); // fallback
     });
   }
 
-  // Seek to a specific time and wait for the frame to be ready
   function seekVideo(videoEl, time) {
-    return new Promise((resolve, reject) => {
-      // Pause first
+    return new Promise((resolve) => {
       videoEl.pause();
       videoEl.currentTime = time;
       const onSeeked = () => { cleanup(); resolve(); };
-      const onErr    = () => { cleanup(); reject(new Error('Seek failed')); };
-      const cleanup  = () => {
-        videoEl.removeEventListener('seeked', onSeeked);
-        videoEl.removeEventListener('error', onErr);
-      };
+      const cleanup  = () => videoEl.removeEventListener('seeked', onSeeked);
       videoEl.addEventListener('seeked', onSeeked);
-      videoEl.addEventListener('error', onErr);
-      // Fallback: if seeked never fires in 4s, try anyway
-      setTimeout(() => { cleanup(); resolve(); }, 4000);
+      setTimeout(() => { cleanup(); resolve(); }, 4000); // fallback
     });
   }
 
   // ── Drawing ──────────────────────────────────────────────────
+  // Roboflow returns: { x, y, width, height } where x/y are CENTER coords
+  function rfToRect(p) {
+    return {
+      x: p.x - p.width  / 2,
+      y: p.y - p.height / 2,
+      w: p.width,
+      h: p.height
+    };
+  }
+
   function drawResult(persons, winnerIdx) {
-    // Copy the captured frame onto the result canvas
     resultCanvas.width  = frameCanvas.width;
     resultCanvas.height = frameCanvas.height;
     resultCtx.drawImage(frameCanvas, 0, 0);
 
-    // Dim non-winners slightly
+    // Dim non-winners
     persons.forEach((p, i) => {
       if (i !== winnerIdx) {
-        const [x, y, w, h] = p.bbox;
-        resultCtx.fillStyle = 'rgba(0,0,0,0.35)';
+        const { x, y, w, h } = rfToRect(p);
+        resultCtx.fillStyle = 'rgba(0,0,0,0.38)';
         resultCtx.fillRect(x, y, w, h);
       }
     });
 
-    // Draw all boxes
     persons.forEach((p, i) => {
-      const [x, y, w, h] = p.bbox;
+      const { x, y, w, h } = rfToRect(p);
       const isWinner = i === winnerIdx;
       const color    = isWinner ? '#00ffaa' : '#ff3c5f';
 
-      resultCtx.globalAlpha = isWinner ? 1 : 0.7;
+      resultCtx.globalAlpha = isWinner ? 1 : 0.65;
       resultCtx.strokeStyle = color;
-      resultCtx.lineWidth   = isWinner ? 4 : 2;
+      resultCtx.lineWidth   = isWinner ? 4 : 1.5;
       resultCtx.strokeRect(x, y, w, h);
 
-      // Winner glow
       if (isWinner) {
         resultCtx.shadowColor = '#00ffaa';
-        resultCtx.shadowBlur  = 24;
+        resultCtx.shadowBlur  = 28;
         resultCtx.strokeRect(x, y, w, h);
         resultCtx.shadowBlur  = 0;
       }
 
       // Corner brackets
-      const cs = Math.min(22, w * 0.15, h * 0.1);
-      resultCtx.lineWidth = isWinner ? 5 : 3;
+      const cs = Math.min(20, w * 0.2, h * 0.12);
+      resultCtx.lineWidth = isWinner ? 5 : 2.5;
       resultCtx.beginPath();
-      resultCtx.moveTo(x, y + cs);        resultCtx.lineTo(x, y);          resultCtx.lineTo(x + cs, y);
-      resultCtx.moveTo(x + w - cs, y);    resultCtx.lineTo(x + w, y);      resultCtx.lineTo(x + w, y + cs);
-      resultCtx.moveTo(x, y + h - cs);    resultCtx.lineTo(x, y + h);      resultCtx.lineTo(x + cs, y + h);
-      resultCtx.moveTo(x + w - cs, y + h);resultCtx.lineTo(x + w, y + h);  resultCtx.lineTo(x + w, y + h - cs);
+      resultCtx.moveTo(x, y + cs);         resultCtx.lineTo(x, y);          resultCtx.lineTo(x + cs, y);
+      resultCtx.moveTo(x + w - cs, y);     resultCtx.lineTo(x + w, y);      resultCtx.lineTo(x + w, y + cs);
+      resultCtx.moveTo(x, y + h - cs);     resultCtx.lineTo(x, y + h);      resultCtx.lineTo(x + cs, y + h);
+      resultCtx.moveTo(x + w - cs, y + h); resultCtx.lineTo(x + w, y + h);  resultCtx.lineTo(x + w, y + h - cs);
       resultCtx.stroke();
 
-      // Label
-      const label    = isWinner ? '★  WINNER' : `#${i + 1}`;
-      const fontSize = Math.max(13, Math.min(22, h * 0.07));
+      // Label — scale font to box size so it's readable even on small boxes
+      const label    = isWinner ? '★ WINNER' : `#${i + 1}`;
+      const fontSize = Math.max(11, Math.min(20, h * 0.18));
       resultCtx.font = `600 ${fontSize}px 'DM Mono', monospace`;
       const tw = resultCtx.measureText(label).width;
-      const lh = fontSize + 10;
+      const lh = fontSize + 8;
 
-      resultCtx.globalAlpha = isWinner ? 0.95 : 0.8;
+      resultCtx.globalAlpha = isWinner ? 0.95 : 0.82;
       resultCtx.fillStyle   = color;
-      resultCtx.fillRect(x, y - lh, tw + 14, lh);
+      resultCtx.fillRect(x, y - lh, tw + 12, lh);
       resultCtx.fillStyle   = isWinner ? '#000' : '#fff';
       resultCtx.globalAlpha = 1;
-      resultCtx.fillText(label, x + 7, y - 6);
+      resultCtx.fillText(label, x + 6, y - 5);
     });
 
     resultCtx.globalAlpha = 1;
@@ -718,45 +811,37 @@
   }
 
   function showResult(winnerIdx, total) {
-    // Winner badge
     document.getElementById('wbNum').textContent  = '#' + (winnerIdx + 1);
     document.getElementById('wbSub').textContent  = `Person ${winnerIdx + 1} of ${total} detected`;
     document.getElementById('winnerBadge').style.display = 'flex';
+    document.getElementById('resultWrap').style.display  = 'flex';
 
-    // Canvas
-    document.getElementById('resultWrap').style.display = 'flex';
-
-    // Count note
     const pc = document.getElementById('peopleCount');
-    pc.innerHTML = `<span>${total}</span> ${total === 1 ? 'person' : 'people'} detected in frame`;
+    pc.innerHTML     = `<span>${total}</span> ${total === 1 ? 'person' : 'people'} detected in frame`;
     pc.style.display = '';
 
-    // Show result step
     document.getElementById('resultStep').style.display = '';
-
-    document.getElementById('pickStatus').textContent = 'Done';
-    document.getElementById('pickStatus').className   = 'step-status done';
-
-    // Scroll to result
+    document.getElementById('pickStatus').textContent   = 'Done';
+    document.getElementById('pickStatus').className     = 'step-status done';
     document.getElementById('resultStep').scrollIntoView({ behavior: 'smooth' });
 
-    // Re-enable pick for another attempt
-    document.getElementById('pickBtn').disabled  = false;
+    document.getElementById('pickBtn').disabled    = false;
     document.getElementById('pickBtn').textContent = '🎲 Pick Again (new random frame)';
   }
 
   function reset() {
     videoFile = null;
     document.getElementById('fileInput').value  = '';
-    document.getElementById('dropZone').classList.remove('has-file');
-    document.getElementById('dropZone').querySelector('.dz-label').style.display = '';
-    document.getElementById('dzFilename').style.display = 'none';
-    document.getElementById('uploadStatus').textContent = 'Waiting';
-    document.getElementById('uploadStatus').className   = 'step-status';
-    document.getElementById('pickBtn').disabled = true;
-    document.getElementById('pickBtn').textContent = '🎲 Pick Random Winner';
-    document.getElementById('resultStep').style.display = 'none';
-    document.getElementById('pickStatus').textContent   = '';
+    const dz = document.getElementById('dropZone');
+    dz.classList.remove('has-file');
+    dz.querySelector('.dz-label').style.display = '';
+    document.getElementById('dzFilename').style.display  = 'none';
+    document.getElementById('uploadStatus').textContent  = 'Waiting';
+    document.getElementById('uploadStatus').className    = 'step-status';
+    document.getElementById('pickBtn').disabled          = true;
+    document.getElementById('pickBtn').textContent       = '🎲 Pick Random Winner';
+    document.getElementById('resultStep').style.display  = 'none';
+    document.getElementById('pickStatus').textContent    = '';
     showProgress(false);
     hiddenVideo.src = '';
   }
@@ -769,7 +854,7 @@
   function launchConfetti() {
     const colors = ['#ff3c5f','#ffcc00','#00ffaa','#ffffff','#ff9940','#a78bfa'];
     for (let i = 0; i < 60; i++) {
-      const el   = document.createElement('div');
+      const el = document.createElement('div');
       el.className = 'confetti';
       const size = 5 + Math.random() * 7;
       el.style.cssText = `
@@ -785,8 +870,18 @@
     }
   }
 
-  // ── Init ─────────────────────────────────────────────────────
-  loadModel();
+  // ── Init — restore API key from session if available ─────────
+  window.addEventListener('load', () => {
+    try {
+      const saved = sessionStorage.getItem('rf_api_key');
+      if (saved) {
+        apiKey = saved;
+        hideLoader();
+        return;
+      }
+    } catch(_) {}
+    // Otherwise show the API key entry screen (already visible)
+  });
 </script>
 </body>
 </html>
