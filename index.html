@@ -32,343 +32,326 @@ html, body {
   color: var(--text);
   font-family: 'DM Mono', monospace;
   -webkit-tap-highlight-color: transparent;
-  -webkit-touch-callout: none;
   user-select: none;
   padding: var(--safe-top) var(--safe-right) var(--safe-bottom) var(--safe-left);
 }
 
 /* ── HEADER ── */
 header {
-  padding: 1.2rem 1.5rem 0.9rem;
+  padding: 1.2rem 1.5rem 1rem;
   border-bottom: 1px solid var(--border);
   display: flex; align-items: baseline; gap: 0.75rem;
 }
-header h1 { font-family:'Bebas Neue',sans-serif; font-size:2.4rem; letter-spacing:0.08em; }
+header h1 {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 2.4rem; letter-spacing: 0.08em;
+}
 header h1 span { color: var(--accent); }
-header p { font-size:0.6rem; letter-spacing:0.15em; text-transform:uppercase; color:var(--muted); }
+header p { font-size: 0.6rem; letter-spacing: 0.15em; text-transform: uppercase; color: var(--muted); }
 
-/* ── STEPS ── */
-.step {
-  padding: 1.1rem 1.5rem;
+/* ── SCREEN SYSTEM ── */
+/* Each screen is a full section shown/hidden */
+.screen { display: none; flex-direction: column; }
+.screen.active { display: flex; }
+
+/* ── SCREEN CHROME ── */
+.screen-header {
+  padding: 1.2rem 1.5rem 0.8rem;
   border-bottom: 1px solid var(--border);
-  display: flex; flex-direction: column; gap: 0.75rem;
+  display: flex; align-items: center; gap: 0.75rem;
 }
-.step-header { display:flex; align-items:center; gap:0.75rem; }
-.step-num    { font-family:'Bebas Neue',sans-serif; font-size:1.4rem; color:var(--accent); line-height:1; min-width:1.4rem; }
-.step-title  { font-size:0.7rem; letter-spacing:0.13em; text-transform:uppercase; }
-.step-status { margin-left:auto; font-size:0.6rem; letter-spacing:0.1em; text-transform:uppercase; color:var(--muted); }
-.step-status.done   { color: var(--win); }
-.step-status.active { color: var(--accent2); }
+.screen-step {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 1.3rem; color: var(--accent); line-height: 1;
+}
+.screen-title { font-size: 0.7rem; letter-spacing: 0.13em; text-transform: uppercase; }
+.screen-body  { padding: 1.2rem 1.5rem; display: flex; flex-direction: column; gap: 1rem; }
 
-/* ── UPLOAD ── */
+/* ── UPLOAD ZONE ── */
 #dropZone {
-  border: 1.5px dashed var(--border); border-radius:8px;
-  padding: 1.8rem 1rem; text-align:center; cursor:pointer;
-  display:flex; flex-direction:column; align-items:center; gap:0.6rem;
-  transition: border-color 0.2s;
+  border: 1.5px dashed var(--border); border-radius: 10px;
+  padding: 2.2rem 1rem; text-align: center; cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; gap: 0.7rem;
+  transition: border-color 0.2s, background 0.2s;
 }
-#dropZone:active, #dropZone.has-file { border-color:var(--win); border-style:solid; }
-#dropZone svg { opacity:0.35; }
-#dropZone .dz-label  { font-size:0.7rem; letter-spacing:0.12em; text-transform:uppercase; color:var(--muted); }
-#dropZone .dz-fname  { font-size:0.7rem; color:var(--win); display:none; }
-#fileInput { display:none; }
+#dropZone:active { background: rgba(255,60,95,0.04); border-color: var(--accent); }
+#dropZone.has-file { border-color: var(--win); border-style: solid; }
+#dropZone svg { opacity: 0.35; }
+.dz-label { font-size: 0.7rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+.dz-fname { font-size: 0.7rem; color: var(--win); display: none; letter-spacing: 0.06em; }
+#fileInput { display: none; }
+
+/* ── PROGRESS BAR ── */
+.progress-wrap { display: flex; flex-direction: column; gap: 0.45rem; }
+.progress-bar  { height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; }
+.progress-fill { height: 100%; background: var(--accent); width: 0%; transition: width 0.35s; }
+.progress-lbl  { font-size: 0.62rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+
+/* ── SCROLLABLE CANVAS ── */
+.canvas-scroll {
+  overflow-x: auto; overflow-y: hidden;
+  border-radius: 8px; border: 1px solid var(--border);
+  background: #000;
+  -webkit-overflow-scrolling: touch;
+}
+.canvas-scroll canvas {
+  display: block; height: 240px; width: auto;
+}
+.scroll-hint {
+  font-size: 0.6rem; color: var(--muted); letter-spacing: 0.08em;
+  text-align: center; padding: 0 0 0.2rem;
+}
 
 /* ── BUTTONS ── */
 .btn {
-  width:100%; height:52px; border:none; border-radius:8px;
-  font-family:'DM Mono',monospace; font-size:0.76rem; font-weight:500;
-  letter-spacing:0.1em; text-transform:uppercase; cursor:pointer;
+  width: 100%; height: 54px; border: none; border-radius: 8px;
+  font-family: 'DM Mono', monospace; font-size: 0.76rem; font-weight: 500;
+  letter-spacing: 0.1em; text-transform: uppercase; cursor: pointer;
   transition: opacity 0.12s, transform 0.1s;
-  -webkit-appearance:none; outline:none; touch-action:manipulation;
-  display:flex; align-items:center; justify-content:center; gap:0.5rem;
+  -webkit-appearance: none; outline: none; touch-action: manipulation;
+  display: flex; align-items: center; justify-content: center; gap: 0.5rem;
 }
-.btn:active   { transform:scale(0.97); opacity:0.8; }
-.btn:disabled { opacity:0.25; pointer-events:none; }
-.btn-primary  { background:var(--accent);  color:#fff; }
-.btn-win      { background:var(--win);     color:#000; font-size:0.85rem; }
-.btn-ghost    { background:transparent; color:var(--muted); border:1px solid var(--border); font-size:0.68rem; }
-.btn-row      { display:flex; gap:8px; }
-.btn-row .btn { flex:1; }
+.btn:active   { transform: scale(0.97); opacity: 0.8; }
+.btn:disabled { opacity: 0.25; pointer-events: none; }
+.btn-primary  { background: var(--accent); color: #fff; }
+.btn-win      { background: var(--win);    color: #000; font-size: 0.85rem; }
+.btn-ghost    {
+  background: transparent; color: var(--muted);
+  border: 1px solid var(--border); font-size: 0.68rem;
+}
+.btn-row { display: flex; gap: 8px; }
+.btn-row .btn { flex: 1; }
 
-/* ── PROGRESS ── */
-#progressWrap { display:none; flex-direction:column; gap:0.45rem; }
-#progressBar  { height:3px; background:var(--border); border-radius:2px; overflow:hidden; }
-#progressFill { height:100%; background:var(--accent); width:0%; transition:width 0.3s; }
-#progressLabel { font-size:0.63rem; letter-spacing:0.1em; text-transform:uppercase; color:var(--muted); }
-
-/* ── PANORAMA PREVIEW ── */
-#panoramaWrap {
-  display:none;
-  flex-direction:column;
-  gap:0.6rem;
+/* ── CONFIDENCE ── */
+.conf-row { display: flex; align-items: center; gap: 10px; }
+.conf-row label {
+  font-size: 0.6rem; color: var(--muted);
+  letter-spacing: 0.08em; text-transform: uppercase; white-space: nowrap;
 }
-#panoramaScroll {
-  overflow-x: auto;
-  overflow-y: hidden;
-  border-radius:6px;
-  border:1px solid var(--border);
-  background:#000;
-  -webkit-overflow-scrolling: touch;
-}
-#panoramaCanvas {
-  display:block;
-  height: 180px;
-  width: auto;
-}
-.pano-hint { font-size:0.6rem; color:var(--muted); letter-spacing:0.08em; text-align:center; }
-
-/* ── EDIT CANVAS WRAP ── */
-#editSection {
-  display:none;
-  flex-direction:column;
-  gap:0.75rem;
-}
-#editToolbar {
-  display:flex;
-  gap:6px;
-  flex-wrap:wrap;
-}
-.tool-btn {
-  flex:1;
-  min-width: 0;
-  height:40px;
-  border:1px solid var(--border);
-  border-radius:6px;
-  background:transparent;
-  color:var(--muted);
-  font-family:'DM Mono',monospace;
-  font-size:0.62rem;
-  letter-spacing:0.08em;
-  text-transform:uppercase;
-  cursor:pointer;
-  touch-action:manipulation;
-  -webkit-appearance:none;
-  transition: all 0.15s;
-  white-space: nowrap;
-  padding: 0 6px;
-}
-.tool-btn.active { background:var(--accent); border-color:var(--accent); color:#fff; }
-.tool-btn:active { opacity:0.75; }
-
-#editScroll {
-  overflow-x: auto;
-  overflow-y: hidden;
-  border-radius:6px;
-  border:1px solid var(--border);
-  background:#000;
-  -webkit-overflow-scrolling: touch;
-  position: relative;
-}
-#editCanvas {
-  display:block;
-  height: 260px;
-  width: auto;
-  cursor: crosshair;
-  touch-action: none;
-}
-.edit-hint { font-size:0.6rem; color:var(--muted); letter-spacing:0.08em; text-align:center; }
-
-/* Person count pill */
-#personPill {
-  display:inline-flex;
-  align-items:center;
-  gap:6px;
-  background:var(--surface);
-  border:1px solid var(--border);
-  border-radius:20px;
-  padding:4px 12px;
-  font-size:0.68rem;
-  color:var(--muted);
-  align-self:flex-start;
-}
-#personPill span { color:var(--accent2); font-family:'Bebas Neue',sans-serif; font-size:1.1rem; line-height:1; }
-
-/* ── WINNER SECTION ── */
-#winnerSection { display:none; flex-direction:column; gap:0.75rem; }
-
-#winnerBadge {
-  display:flex; align-items:center; gap:1rem;
-  background:var(--surface); border:1px solid var(--win);
-  border-radius:8px; padding:0.9rem 1.1rem;
-}
-#winnerBadge .wb-num {
-  font-family:'Bebas Neue',sans-serif; font-size:3.2rem;
-  color:var(--win); line-height:1;
-  text-shadow:0 0 30px rgba(0,255,170,0.3);
-}
-.wb-label { font-family:'Bebas Neue',sans-serif; font-size:1.5rem; letter-spacing:0.06em; }
-.wb-sub   { font-size:0.6rem; letter-spacing:0.1em; text-transform:uppercase; color:var(--muted); margin-top:2px; }
-
-#winnerCanvasScroll {
-  overflow-x:auto; overflow-y:hidden;
-  border-radius:6px; border:1px solid var(--border);
-  background:#000; -webkit-overflow-scrolling:touch;
-}
-#winnerCanvas { display:block; height:260px; width:auto; }
-
-/* ── CONF ROW ── */
-.conf-row { display:flex; align-items:center; gap:10px; }
-.conf-row label { font-size:0.6rem; color:var(--muted); letter-spacing:0.08em; text-transform:uppercase; white-space:nowrap; }
 input[type=range] {
-  flex:1; -webkit-appearance:none; appearance:none;
-  height:3px; background:var(--border); border-radius:2px; outline:none;
+  flex: 1; -webkit-appearance: none; appearance: none;
+  height: 3px; background: var(--border); border-radius: 2px; outline: none;
 }
 input[type=range]::-webkit-slider-thumb {
-  -webkit-appearance:none; width:24px; height:24px;
-  border-radius:50%; background:var(--accent); cursor:pointer;
+  -webkit-appearance: none; width: 26px; height: 26px;
+  border-radius: 50%; background: var(--accent); cursor: pointer;
 }
-.conf-val { font-size:0.7rem; color:var(--text); min-width:32px; text-align:right; }
+.conf-val { font-size: 0.7rem; color: var(--text); min-width: 34px; text-align: right; }
 
-/* ── API KEY OVERLAY ── */
+/* ── ADD-PERSON TOOL ── */
+#addHint {
+  font-size: 0.62rem; color: var(--accent2);
+  letter-spacing: 0.08em; text-align: center; padding: 0.1rem 0;
+}
+.person-pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 20px; padding: 4px 14px;
+  font-size: 0.67rem; color: var(--muted); align-self: flex-start;
+}
+.person-pill span {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 1.1rem; color: var(--accent2); line-height: 1;
+}
+
+/* ── WINNER BADGE ── */
+#winnerBadge {
+  display: flex; align-items: center; gap: 1rem;
+  background: var(--surface); border: 1px solid var(--win);
+  border-radius: 10px; padding: 1rem 1.2rem;
+}
+.wb-num {
+  font-family: 'Bebas Neue', sans-serif; font-size: 3.5rem;
+  color: var(--win); line-height: 1;
+  text-shadow: 0 0 30px rgba(0,255,170,0.35);
+}
+.wb-label { font-family: 'Bebas Neue', sans-serif; font-size: 1.6rem; letter-spacing: 0.06em; }
+.wb-sub   { font-size: 0.6rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-top: 2px; }
+
+/* ── API OVERLAY ── */
 #apiOverlay {
-  position:fixed; inset:0; z-index:200; background:var(--bg);
-  display:flex; flex-direction:column; align-items:center; justify-content:center;
-  gap:1.2rem; padding:2rem; transition:opacity 0.4s;
+  position: fixed; inset: 0; z-index: 300; background: var(--bg);
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: 1.1rem; padding: 2rem;
+  transition: opacity 0.4s;
 }
-#apiOverlay.hide { opacity:0; pointer-events:none; }
-#apiOverlay h1 { font-family:'Bebas Neue',sans-serif; font-size:2.8rem; letter-spacing:0.1em; }
-#apiOverlay h1 span { color:var(--accent); }
-#apiOverlay p { font-size:0.65rem; color:var(--muted); letter-spacing:0.1em; text-transform:uppercase; text-align:center; max-width:280px; line-height:1.8; }
+#apiOverlay.hide { opacity: 0; pointer-events: none; }
+#apiOverlay h1 { font-family: 'Bebas Neue', sans-serif; font-size: 2.8rem; letter-spacing: 0.1em; }
+#apiOverlay h1 span { color: var(--accent); }
+#apiOverlay p {
+  font-size: 0.64rem; color: var(--muted);
+  letter-spacing: 0.1em; text-transform: uppercase;
+  text-align: center; max-width: 280px; line-height: 1.9;
+}
 #apiKeyInput {
-  width:100%; max-width:320px; padding:0.85rem 1rem;
-  background:var(--surface); border:1px solid var(--border); border-radius:6px;
-  color:var(--text); font-family:'DM Mono',monospace; font-size:0.75rem;
-  outline:none; -webkit-appearance:none; text-align:center;
+  width: 100%; max-width: 320px; padding: 0.85rem 1rem;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 6px;
+  color: var(--text); font-family: 'DM Mono', monospace; font-size: 0.75rem;
+  outline: none; -webkit-appearance: none; text-align: center;
 }
-#apiKeyInput:focus { border-color:var(--accent); }
+#apiKeyInput:focus { border-color: var(--accent); }
 #apiSubmitBtn {
-  width:100%; max-width:320px; height:50px;
-  background:var(--accent); color:#fff; border:none; border-radius:6px;
-  font-family:'DM Mono',monospace; font-size:0.78rem; font-weight:500;
-  letter-spacing:0.1em; text-transform:uppercase; cursor:pointer; -webkit-appearance:none;
+  width: 100%; max-width: 320px; height: 50px;
+  background: var(--accent); color: #fff; border: none; border-radius: 6px;
+  font-family: 'DM Mono', monospace; font-size: 0.78rem; font-weight: 500;
+  letter-spacing: 0.1em; text-transform: uppercase; cursor: pointer; -webkit-appearance: none;
 }
-#apiSubmitBtn:active { opacity:0.8; }
-#getKeyLink { font-size:0.6rem; color:var(--muted); letter-spacing:0.08em; text-decoration:none; text-transform:uppercase; }
+#apiSubmitBtn:active { opacity: 0.8; }
+#getKeyLink {
+  font-size: 0.6rem; color: var(--muted);
+  letter-spacing: 0.08em; text-decoration: none; text-transform: uppercase;
+}
 
 /* ── CONFETTI ── */
 .confetti {
-  position:fixed; pointer-events:none; z-index:300; border-radius:2px;
-  animation:fall linear forwards;
+  position: fixed; pointer-events: none; z-index: 400; border-radius: 2px;
+  animation: fall linear forwards;
 }
 @keyframes fall {
-  0%   { transform:translateY(-10px) rotate(0deg);   opacity:1; }
-  100% { transform:translateY(105vh) rotate(600deg); opacity:0; }
+  0%   { transform: translateY(-10px) rotate(0deg);   opacity: 1; }
+  100% { transform: translateY(105vh) rotate(600deg); opacity: 0; }
 }
 
-/* Spinner */
-.spinner {
-  width:36px; height:36px; border:2px solid var(--border);
-  border-top-color:var(--accent); border-radius:50%;
-  animation:spin 0.8s linear infinite; display:none;
-}
-@keyframes spin { to { transform:rotate(360deg); } }
+/* ── DIVIDER ── */
+.divider { height: 1px; background: var(--border); }
+
 </style>
 </head>
 <body>
 
-<!-- API Key overlay -->
+<!-- ── API KEY OVERLAY ── -->
 <div id="apiOverlay">
   <h1>CROWD<span>PICK</span></h1>
   <p>Enter your Roboflow API key to enable people detection</p>
-  <input type="text" id="apiKeyInput" placeholder="Paste API key here..." autocomplete="off" autocorrect="off" spellcheck="false">
-  <button id="apiSubmitBtn" onclick="submitApiKey()">Continue</button>
-  <a href="https://app.roboflow.com" target="_blank" id="getKeyLink">Get a free key at roboflow.com →</a>
+  <input type="text" id="apiKeyInput" placeholder="Paste API key here..."
+         autocomplete="off" autocorrect="off" spellcheck="false">
+  <button id="apiSubmitBtn" onclick="submitApiKey()">Continue →</button>
+  <a href="https://app.roboflow.com" target="_blank" id="getKeyLink">
+    Get a free key at roboflow.com →
+  </a>
 </div>
 
-<!-- Hidden video for frame extraction -->
-<video id="hiddenVideo" muted playsinline webkit-playsinline style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0;pointer-events:none;"></video>
+<!-- Hidden video + offscreen canvas for frame extraction -->
+<video id="hiddenVideo" muted playsinline webkit-playsinline
+  style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0;pointer-events:none;"></video>
 <canvas id="offscreenCanvas" style="display:none;"></canvas>
 
 <header>
   <h1>CROWD<span>PICK</span></h1>
-  <p>// Random winner selector</p>
+  <p>// Random winner from your group</p>
 </header>
 
-<!-- STEP 1: Upload -->
-<div class="step">
-  <div class="step-header">
-    <span class="step-num">1</span>
-    <span class="step-title">Upload video of your group</span>
-    <span class="step-status" id="s1status">Waiting</span>
+<!-- ══════════════════════════════════════════
+     SCREEN 1 — Upload & build panorama
+══════════════════════════════════════════ -->
+<div class="screen active" id="screen1">
+  <div class="screen-header">
+    <span class="screen-step">1</span>
+    <span class="screen-title">Upload video &amp; build panorama</span>
   </div>
-  <div id="dropZone" onclick="document.getElementById('fileInput').click()">
-    <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-      <path d="M15 10l-4 4-4-4"/><path d="M11 14V3"/>
-      <rect x="3" y="15" width="18" height="6" rx="2"/>
-    </svg>
-    <span class="dz-label">Tap to choose or record video</span>
-    <span class="dz-fname" id="dzFname"></span>
-  </div>
-  <input type="file" id="fileInput" accept="video/*">
-</div>
+  <div class="screen-body">
 
-<!-- STEP 2: Settings -->
-<div class="step">
-  <div class="step-header">
-    <span class="step-num">2</span>
-    <span class="step-title">Detection settings</span>
-  </div>
-  <div class="conf-row">
-    <label>Confidence</label>
-    <input type="range" id="confSlider" min="10" max="80" value="25" oninput="updateConf(this.value)">
-    <span class="conf-val" id="confVal">25%</span>
-  </div>
-</div>
+    <div id="dropZone" onclick="document.getElementById('fileInput').click()">
+      <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M15 10l-4 4-4-4"/><path d="M11 14V3"/>
+        <rect x="3" y="15" width="18" height="6" rx="2"/>
+      </svg>
+      <span class="dz-label">Tap to choose or record a video</span>
+      <span class="dz-fname" id="dzFname"></span>
+    </div>
+    <input type="file" id="fileInput" accept="video/*">
 
-<!-- STEP 3: Build panorama + detect -->
-<div class="step">
-  <div class="step-header">
-    <span class="step-num">3</span>
-    <span class="step-title">Build panorama &amp; detect</span>
-    <span class="step-status" id="s3status"></span>
-  </div>
-
-  <div id="progressWrap">
-    <div id="progressBar"><div id="progressFill"></div></div>
-    <span id="progressLabel"></span>
-  </div>
-
-  <div id="panoramaWrap">
-    <div id="panoramaScroll"><canvas id="panoramaCanvas"></canvas></div>
-    <p class="pano-hint">↔ Scroll to see full panorama</p>
-  </div>
-
-  <button class="btn btn-primary" id="buildBtn" onclick="buildAndDetect()" disabled>
-    🔍 Build Panorama &amp; Detect People
-  </button>
-</div>
-
-<!-- STEP 4: Edit detections -->
-<div class="step" id="editStep" style="display:none">
-  <div class="step-header">
-    <span class="step-num">4</span>
-    <span class="step-title">Review &amp; edit detections</span>
-    <span class="step-status" id="s4status"></span>
-  </div>
-
-  <div id="editSection">
-    <div id="personPill"><span id="personCount">0</span> people confirmed</div>
-
-    <div id="editToolbar">
-      <button class="tool-btn active" id="toolDelete" onclick="setTool('delete')">✕ Delete</button>
-      <button class="tool-btn"        id="toolAdd"    onclick="setTool('add')">＋ Add</button>
-      <button class="tool-btn"        id="toolDone"   onclick="confirmDetections()">✓ Done</button>
+    <!-- Progress (hidden until building) -->
+    <div class="progress-wrap" id="s1progress" style="display:none">
+      <div class="progress-bar"><div class="progress-fill" id="s1fill"></div></div>
+      <span class="progress-lbl" id="s1lbl"></span>
     </div>
 
-    <div id="editScroll"><canvas id="editCanvas"></canvas></div>
-    <p class="edit-hint" id="editHint">Tap a box to delete a false detection</p>
+    <button class="btn btn-primary" id="buildBtn" onclick="buildPanorama()" disabled>
+      📐 Build Panorama
+    </button>
+
   </div>
 </div>
 
-<!-- STEP 5: Pick winner -->
-<div class="step" id="winnerStep" style="display:none">
-  <div class="step-header">
-    <span class="step-num">5</span>
-    <span class="step-title">Pick a winner</span>
-    <span class="step-status" id="s5status"></span>
+<!-- ══════════════════════════════════════════
+     SCREEN 2 — Confirm panorama & detect
+══════════════════════════════════════════ -->
+<div class="screen" id="screen2">
+  <div class="screen-header">
+    <span class="screen-step">2</span>
+    <span class="screen-title">Confirm panorama looks good</span>
   </div>
+  <div class="screen-body">
 
-  <div id="winnerSection">
+    <div class="canvas-scroll" id="panoScroll">
+      <canvas id="panoramaCanvas"></canvas>
+    </div>
+    <p class="scroll-hint">↔ Scroll to see the full panorama</p>
+
+    <div class="conf-row">
+      <label>Confidence</label>
+      <input type="range" id="confSlider" min="10" max="80" value="25" oninput="updateConf(this.value)">
+      <span class="conf-val" id="confVal">25%</span>
+    </div>
+
+    <!-- Progress (hidden until detecting) -->
+    <div class="progress-wrap" id="s2progress" style="display:none">
+      <div class="progress-bar"><div class="progress-fill" id="s2fill"></div></div>
+      <span class="progress-lbl" id="s2lbl"></span>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-ghost" onclick="goTo(1)">← Redo</button>
+      <button class="btn btn-primary" id="detectBtn" onclick="runDetection()">
+        🔍 Detect People
+      </button>
+    </div>
+
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     SCREEN 3 — Review & add boxes
+══════════════════════════════════════════ -->
+<div class="screen" id="screen3">
+  <div class="screen-header">
+    <span class="screen-step">3</span>
+    <span class="screen-title">Review &amp; add any missed people</span>
+  </div>
+  <div class="screen-body">
+
+    <div class="person-pill">
+      <span id="personCount">0</span> people confirmed
+    </div>
+
+    <div class="canvas-scroll" id="editScroll">
+      <canvas id="editCanvas" style="cursor:crosshair;touch-action:none;"></canvas>
+    </div>
+    <p class="scroll-hint">↔ Scroll to view everyone</p>
+
+    <div id="addHint">Tap any empty space to add a missed person</div>
+
+    <div class="btn-row">
+      <button class="btn btn-ghost" onclick="goTo(2)">← Back</button>
+      <button class="btn btn-primary" id="confirmBtn" onclick="confirmAndPick()">
+        ✓ Confirm &amp; Pick Winner
+      </button>
+    </div>
+
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     SCREEN 4 — Winner
+══════════════════════════════════════════ -->
+<div class="screen" id="screen4">
+  <div class="screen-header">
+    <span class="screen-step">4</span>
+    <span class="screen-title">Winner</span>
+  </div>
+  <div class="screen-body">
+
     <div id="winnerBadge">
       <span class="wb-num" id="wbNum">#1</span>
       <div>
@@ -376,60 +359,71 @@ input[type=range]::-webkit-slider-thumb {
         <div class="wb-sub" id="wbSub"></div>
       </div>
     </div>
-    <div id="winnerCanvasScroll"><canvas id="winnerCanvas"></canvas></div>
-    <div class="btn-row">
-      <button class="btn btn-win"   id="rerollBtn" onclick="pickWinner()">🎲 Reroll Winner</button>
-      <button class="btn btn-ghost" onclick="resetAll()">↺ Start over</button>
+
+    <div class="canvas-scroll" id="winnerScroll">
+      <canvas id="winnerCanvas"></canvas>
     </div>
+    <p class="scroll-hint">↔ Scroll to see the winner highlighted</p>
+
+    <div class="btn-row">
+      <button class="btn btn-win" onclick="pickWinner()">🎲 Reroll</button>
+      <button class="btn btn-ghost" onclick="goTo(3)">← Edit list</button>
+    </div>
+    <button class="btn btn-ghost" onclick="startOver()">↺ Start over</button>
+
   </div>
 </div>
 
 <script>
-// ─────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────
 // STATE
-// ─────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────
 let apiKey        = null;
 let videoFile     = null;
 let confThreshold = 0.25;
-let panoramaBlob  = null;   // final stitched panorama as a Blob
-let panoramaImg   = null;   // Image element of the panorama
-let persons       = [];     // array of {x,y,w,h} in panorama coords (top-left origin)
-let currentTool   = 'delete';
-let confirmed     = false;
+let persons       = [];   // [{x,y,w,h}] top-left coords in panorama space
 
 // Canvas refs
-const hiddenVideo    = document.getElementById('hiddenVideo');
-const offscreenCanvas= document.getElementById('offscreenCanvas');
-const offCtx         = offscreenCanvas.getContext('2d');
-const panoramaCanvas = document.getElementById('panoramaCanvas');
-const panoCtx        = panoramaCanvas.getContext('2d');
-const editCanvas     = document.getElementById('editCanvas');
-const editCtx        = editCanvas.getContext('2d');
-const winnerCanvas   = document.getElementById('winnerCanvas');
-const winnerCtx      = winnerCanvas.getContext('2d');
+const hiddenVideo     = document.getElementById('hiddenVideo');
+const offscreenCanvas = document.getElementById('offscreenCanvas');
+const offCtx          = offscreenCanvas.getContext('2d');
+const panoramaCanvas  = document.getElementById('panoramaCanvas');
+const panoCtx         = panoramaCanvas.getContext('2d');
+const editCanvas      = document.getElementById('editCanvas');
+const editCtx         = editCanvas.getContext('2d');
+const winnerCanvas    = document.getElementById('winnerCanvas');
+const winnerCtx       = winnerCanvas.getContext('2d');
 
-// Display height for canvases (actual pixels are full res)
-const DISPLAY_H = 260;
+const DISPLAY_H = 240; // CSS display height for all canvases
 
-// ─────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────
 // API KEY
-// ─────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────
 function submitApiKey() {
   const v = document.getElementById('apiKeyInput').value.trim();
   if (!v) return;
   apiKey = v;
   try { sessionStorage.setItem('rf_key', v); } catch(_) {}
-  document.getElementById('apiOverlay').classList.add('hide');
-  setTimeout(() => document.getElementById('apiOverlay').remove(), 500);
+  const el = document.getElementById('apiOverlay');
+  el.classList.add('hide');
+  setTimeout(() => el.remove(), 500);
 }
-
 document.getElementById('apiKeyInput').addEventListener('keydown', e => {
   if (e.key === 'Enter') submitApiKey();
 });
 
-// ─────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────
+// SCREEN NAVIGATION
+// ─────────────────────────────────────────────────────────
+function goTo(n) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen' + n).classList.add('active');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ─────────────────────────────────────────────────────────
 // FILE INPUT
-// ─────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────
 document.getElementById('fileInput').addEventListener('change', function(e) {
   const file = e.target.files[0];
   if (!file) return;
@@ -440,54 +434,51 @@ document.getElementById('fileInput').addEventListener('change', function(e) {
   const fn = document.getElementById('dzFname');
   fn.style.display = '';
   fn.textContent   = file.name;
-  setStepStatus('s1status', 'Ready', 'done');
   document.getElementById('buildBtn').disabled = false;
 });
 
-// ─────────────────────────────────────────────
-// STEP 3: BUILD PANORAMA + DETECT
-// ─────────────────────────────────────────────
-async function buildAndDetect() {
+// ─────────────────────────────────────────────────────────
+// SCREEN 1 → BUILD PANORAMA
+// ─────────────────────────────────────────────────────────
+async function buildPanorama() {
   if (!videoFile) return;
   document.getElementById('buildBtn').disabled = true;
-  document.getElementById('editStep').style.display   = 'none';
-  document.getElementById('winnerStep').style.display = 'none';
-  confirmed = false;
-  persons   = [];
-  showProgress(true);
+
+  const prog = document.getElementById('s1progress');
+  prog.style.display = 'flex';
+
+  function setP(pct, lbl) {
+    document.getElementById('s1fill').style.width = pct + '%';
+    document.getElementById('s1lbl').textContent  = lbl;
+  }
 
   try {
-    // 1. Load video metadata
-    setProgress(3, 'Loading video...');
-    const videoURL = URL.createObjectURL(videoFile);
-    await loadVideoMeta(hiddenVideo, videoURL);
+    setP(3, 'Loading video...');
+    const url = URL.createObjectURL(videoFile);
+    await loadVideoMeta(hiddenVideo, url);
 
     const duration = hiddenVideo.duration;
     const vw = hiddenVideo.videoWidth;
     const vh = hiddenVideo.videoHeight;
 
-    // 2. Sample frames evenly — one frame every ~0.5s, max 40 frames
-    //    Each frame contributes a vertical strip to the panorama
-    const SAMPLE_INTERVAL = 0.5;
+    // Sample up to 40 frames spread across the video, avoiding first/last 2%
     const MAX_FRAMES = 40;
-    const totalFrames = Math.min(MAX_FRAMES, Math.ceil(duration / SAMPLE_INTERVAL));
-    const times = [];
-    for (let i = 0; i < totalFrames; i++) {
-      times.push((i / (totalFrames - 1)) * duration * 0.96 + duration * 0.02);
-    }
+    const totalFrames = Math.min(MAX_FRAMES, Math.max(4, Math.ceil(duration / 0.5)));
+    const times = Array.from({ length: totalFrames }, (_, i) =>
+      duration * 0.02 + (i / (totalFrames - 1)) * duration * 0.96
+    );
 
-    // Each frame contributes a strip of this width
-    const STRIP_W = Math.round(vw / totalFrames * 2.5);
+    // Each frame contributes a vertical strip
+    // Wider strip = more natural looking panorama
+    const STRIP_W = Math.max(40, Math.round(vw / totalFrames * 2.8));
     const panoW   = STRIP_W * totalFrames;
 
-    // Create panorama canvas
     panoramaCanvas.width  = panoW;
     panoramaCanvas.height = vh;
-
-    setProgress(8, `Stitching ${totalFrames} frames into panorama...`);
-
     offscreenCanvas.width  = vw;
     offscreenCanvas.height = vh;
+
+    setP(8, `Stitching ${totalFrames} frames...`);
 
     for (let i = 0; i < totalFrames; i++) {
       await seekVideo(hiddenVideo, times[i]);
@@ -495,190 +486,182 @@ async function buildAndDetect() {
 
       // Take a vertical strip from the center of each frame
       const srcX = Math.round((vw - STRIP_W) / 2);
-      const dstX = i * STRIP_W;
-      panoCtx.drawImage(offscreenCanvas, srcX, 0, STRIP_W, vh, dstX, 0, STRIP_W, vh);
+      panoCtx.drawImage(offscreenCanvas, srcX, 0, STRIP_W, vh, i * STRIP_W, 0, STRIP_W, vh);
 
-      setProgress(8 + Math.round((i / totalFrames) * 42), `Stitching frame ${i+1} of ${totalFrames}...`);
+      setP(8 + Math.round((i / totalFrames) * 88), `Stitching frame ${i + 1} of ${totalFrames}...`);
     }
 
-    URL.revokeObjectURL(videoURL);
+    URL.revokeObjectURL(url);
+    setP(100, 'Panorama ready!');
 
-    // Show panorama preview
-    document.getElementById('panoramaWrap').style.display = 'flex';
-    renderPanoPreview();
-    setProgress(52, 'Panorama ready — sending to detection...');
-    setStepStatus('s3status', 'Stitched', 'done');
+    // Style canvas for display
+    panoramaCanvas.style.height = DISPLAY_H + 'px';
+    panoramaCanvas.style.width  = 'auto';
 
-    // 3. Convert panorama to JPEG blob for API
-    const base64 = await canvasToBase64(panoramaCanvas);
-    setProgress(58, 'Running YOLOv8 body detection...');
+    setTimeout(() => {
+      prog.style.display = 'none';
+      document.getElementById('buildBtn').disabled = false;
+      goTo(2);
+    }, 400);
 
+  } catch(e) {
+    setP(100, 'Error: ' + e.message);
+    console.error(e);
+    document.getElementById('buildBtn').disabled = false;
+  }
+}
+
+// ─────────────────────────────────────────────────────────
+// SCREEN 2 → RUN DETECTION
+// ─────────────────────────────────────────────────────────
+async function runDetection() {
+  document.getElementById('detectBtn').disabled = true;
+  const prog = document.getElementById('s2progress');
+  prog.style.display = 'flex';
+
+  function setP(pct, lbl) {
+    document.getElementById('s2fill').style.width = pct + '%';
+    document.getElementById('s2lbl').textContent  = lbl;
+  }
+
+  try {
+    setP(5, 'Preparing panorama image...');
+    const base64  = await canvasToBase64(panoramaCanvas);
     const confPct = Math.round(confThreshold * 100);
 
-    // Run both models in parallel
+    setP(15, 'Running body detection...');
+    setP(20, 'Running head + body detection in parallel...');
+
     const [bodyPreds, headPreds] = await Promise.all([
       runModel('people-detection-general', '5', base64, confPct),
       runModel('head-counting-system',     '1', base64, confPct),
     ]);
 
-    setProgress(88, 'Merging detections...');
+    setP(82, `Merging ${bodyPreds.length} body + ${headPreds.length} head detections...`);
 
     bodyPreds.forEach(p => p._src = 'body');
     headPreds.forEach(p => p._src = 'head');
     const merged = nms([...bodyPreds, ...headPreds], 0.35);
 
-    // Convert Roboflow center-based coords to top-left
+    // Store as top-left coords
     persons = merged.map((p, i) => ({
       id: i,
       x: p.x - p.width  / 2,
       y: p.y - p.height / 2,
       w: p.width,
       h: p.height,
-      conf: p.confidence,
-      src: p._src,
     }));
 
-    setProgress(98, `Found ${persons.length} people`);
+    setP(100, `Found ${persons.length} people`);
 
-    showProgress(false);
-    openEditStep(bodyPreds.length, headPreds.length);
+    setTimeout(() => {
+      prog.style.display = 'none';
+      document.getElementById('detectBtn').disabled = false;
+      openEditScreen();
+    }, 400);
 
   } catch(e) {
-    setProgress(100, 'Error: ' + e.message);
+    setP(100, 'Error: ' + e.message);
     console.error(e);
-    document.getElementById('buildBtn').disabled = false;
+    document.getElementById('detectBtn').disabled = false;
   }
 }
 
-function renderPanoPreview() {
-  // The panoramaCanvas is already drawn — just set display height via CSS
-  panoramaCanvas.style.height = '180px';
-  panoramaCanvas.style.width  = 'auto';
-}
-
-// ─────────────────────────────────────────────
-// STEP 4: EDIT
-// ─────────────────────────────────────────────
-function openEditStep(bodyCount, headCount) {
-  document.getElementById('editStep').style.display = '';
-  document.getElementById('editSection').style.display = 'flex';
-  setStepStatus('s4status', `${persons.length} found`, 'active');
-  updatePersonPill();
-
-  // Copy panorama onto edit canvas
+// ─────────────────────────────────────────────────────────
+// SCREEN 3 — EDIT
+// ─────────────────────────────────────────────────────────
+function openEditScreen() {
+  // Copy panorama into edit canvas at full resolution
   editCanvas.width  = panoramaCanvas.width;
   editCanvas.height = panoramaCanvas.height;
   editCanvas.style.height = DISPLAY_H + 'px';
   editCanvas.style.width  = 'auto';
 
   redrawEdit();
-
-  // Scroll edit into view
-  document.getElementById('editStep').scrollIntoView({ behavior:'smooth' });
+  updatePill();
+  goTo(3);
 }
 
 function redrawEdit() {
-  // Draw panorama background
   editCtx.clearRect(0, 0, editCanvas.width, editCanvas.height);
   editCtx.drawImage(panoramaCanvas, 0, 0);
 
   persons.forEach((p, i) => {
-    const color = '#ff3c5f';
-    editCtx.globalAlpha  = 0.85;
-    editCtx.strokeStyle  = color;
-    editCtx.lineWidth    = 2;
+    editCtx.globalAlpha  = 0.88;
+    editCtx.strokeStyle  = '#ff3c5f';
+    editCtx.lineWidth    = Math.max(1.5, editCanvas.height * 0.004);
     editCtx.strokeRect(p.x, p.y, p.w, p.h);
 
     // Corner brackets
-    const cs = Math.min(14, p.w * 0.2, p.h * 0.15);
-    editCtx.lineWidth = 2.5;
+    const cs = Math.min(14, p.w * 0.22, p.h * 0.15);
+    editCtx.lineWidth = Math.max(2, editCanvas.height * 0.005);
     editCtx.beginPath();
-    editCtx.moveTo(p.x, p.y+cs);       editCtx.lineTo(p.x, p.y);         editCtx.lineTo(p.x+cs, p.y);
-    editCtx.moveTo(p.x+p.w-cs, p.y);   editCtx.lineTo(p.x+p.w, p.y);     editCtx.lineTo(p.x+p.w, p.y+cs);
-    editCtx.moveTo(p.x, p.y+p.h-cs);   editCtx.lineTo(p.x, p.y+p.h);     editCtx.lineTo(p.x+cs, p.y+p.h);
-    editCtx.moveTo(p.x+p.w-cs, p.y+p.h);editCtx.lineTo(p.x+p.w, p.y+p.h);editCtx.lineTo(p.x+p.w, p.y+p.h-cs);
+    editCtx.moveTo(p.x, p.y+cs);          editCtx.lineTo(p.x, p.y);           editCtx.lineTo(p.x+cs, p.y);
+    editCtx.moveTo(p.x+p.w-cs, p.y);      editCtx.lineTo(p.x+p.w, p.y);       editCtx.lineTo(p.x+p.w, p.y+cs);
+    editCtx.moveTo(p.x, p.y+p.h-cs);      editCtx.lineTo(p.x, p.y+p.h);       editCtx.lineTo(p.x+cs, p.y+p.h);
+    editCtx.moveTo(p.x+p.w-cs, p.y+p.h);  editCtx.lineTo(p.x+p.w, p.y+p.h);  editCtx.lineTo(p.x+p.w, p.y+p.h-cs);
     editCtx.stroke();
 
-    // Number label
-    const fontSize = Math.max(10, Math.min(16, p.h * 0.22));
-    editCtx.font = `500 ${fontSize}px 'DM Mono',monospace`;
-    const lbl = `${i+1}`;
+    // Small number label
+    const fs = Math.max(10, Math.min(16, p.h * 0.25));
+    editCtx.font = `500 ${fs}px 'DM Mono',monospace`;
+    const lbl = String(i + 1);
     const tw  = editCtx.measureText(lbl).width;
-    const lh  = fontSize + 6;
+    const lh  = fs + 5;
     editCtx.globalAlpha = 0.88;
-    editCtx.fillStyle   = color;
-    editCtx.fillRect(p.x, p.y - lh, tw + 8, lh);
+    editCtx.fillStyle   = '#ff3c5f';
+    editCtx.fillRect(p.x, p.y - lh, tw + 7, lh);
     editCtx.fillStyle   = '#fff';
     editCtx.globalAlpha = 1;
-    editCtx.fillText(lbl, p.x + 4, p.y - 4);
+    editCtx.fillText(lbl, p.x + 3, p.y - 3);
   });
 
   editCtx.globalAlpha = 1;
 }
 
-function setTool(t) {
-  currentTool = t;
-  document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
-  document.getElementById('tool' + t.charAt(0).toUpperCase() + t.slice(1)).classList.add('active');
-  if (t === 'delete') document.getElementById('editHint').textContent = 'Tap a box to remove a false detection';
-  if (t === 'add')    document.getElementById('editHint').textContent = 'Tap empty space to add a missed person';
-  editCanvas.style.cursor = t === 'add' ? 'crosshair' : 'pointer';
+function updatePill() {
+  document.getElementById('personCount').textContent = persons.length;
 }
 
-// Convert display coords → canvas coords
-function displayToCanvas(canvas, clientX, clientY) {
-  const rect  = canvas.getBoundingClientRect();
-  const scaleX = canvas.width  / rect.width;
-  const scaleY = canvas.height / rect.height;
-  return {
-    cx: (clientX - rect.left) * scaleX,
-    cy: (clientY - rect.top)  * scaleY,
-  };
-}
-
-// Touch/click handler for edit canvas
+// Tap handler — tap existing box to delete, tap empty space to add
 function handleEditTap(clientX, clientY) {
-  const { cx, cy } = displayToCanvas(editCanvas, clientX, clientY);
+  const { cx, cy } = clientToCanvas(editCanvas, clientX, clientY);
 
-  if (currentTool === 'delete') {
-    // Find topmost box that contains this point
-    for (let i = persons.length - 1; i >= 0; i--) {
-      const p = persons[i];
-      if (cx >= p.x && cx <= p.x + p.w && cy >= p.y && cy <= p.y + p.h) {
-        persons.splice(i, 1);
-        // Re-number ids
-        persons.forEach((p, idx) => p.id = idx);
-        redrawEdit();
-        updatePersonPill();
-        return;
-      }
+  // Check if tapping an existing box (top-most first)
+  for (let i = persons.length - 1; i >= 0; i--) {
+    const p = persons[i];
+    if (cx >= p.x && cx <= p.x + p.w && cy >= p.y && cy <= p.y + p.h) {
+      // Delete this person
+      persons.splice(i, 1);
+      persons.forEach((p, idx) => p.id = idx);
+      redrawEdit();
+      updatePill();
+      return;
     }
   }
 
-  if (currentTool === 'add') {
-    // Use median person size as default box size, fallback to fraction of canvas
-    let defaultW, defaultH;
-    if (persons.length > 0) {
-      const ws = persons.map(p => p.w).sort((a,b)=>a-b);
-      const hs = persons.map(p => p.h).sort((a,b)=>a-b);
-      defaultW = ws[Math.floor(ws.length/2)];
-      defaultH = hs[Math.floor(hs.length/2)];
-    } else {
-      defaultW = editCanvas.width  * 0.06;
-      defaultH = editCanvas.height * 0.35;
-    }
-    persons.push({
-      id: persons.length,
-      x:  cx - defaultW / 2,
-      y:  cy - defaultH / 2,
-      w:  defaultW,
-      h:  defaultH,
-      conf: 1.0,
-      src: 'manual',
-    });
-    redrawEdit();
-    updatePersonPill();
+  // Tapped empty space — add a new person box
+  // Use median detected size as default; fallback to a fraction of canvas
+  let defaultW, defaultH;
+  if (persons.length >= 2) {
+    const ws = [...persons].map(p => p.w).sort((a, b) => a - b);
+    const hs = [...persons].map(p => p.h).sort((a, b) => a - b);
+    defaultW = ws[Math.floor(ws.length / 2)];
+    defaultH = hs[Math.floor(hs.length / 2)];
+  } else {
+    defaultW = editCanvas.width  * 0.05;
+    defaultH = editCanvas.height * 0.40;
   }
+
+  persons.push({
+    id: persons.length,
+    x:  cx - defaultW / 2,
+    y:  cy - defaultH / 2,
+    w:  defaultW,
+    h:  defaultH,
+  });
+  redrawEdit();
+  updatePill();
 }
 
 editCanvas.addEventListener('click', e => {
@@ -693,109 +676,126 @@ editCanvas.addEventListener('touchend', e => {
   }
 }, { passive: false });
 
-function updatePersonPill() {
-  document.getElementById('personCount').textContent = persons.length;
+function clientToCanvas(canvas, clientX, clientY) {
+  const rect = canvas.getBoundingClientRect();
+  return {
+    cx: (clientX - rect.left) * (canvas.width  / rect.width),
+    cy: (clientY - rect.top)  * (canvas.height / rect.height),
+  };
 }
 
-function confirmDetections() {
+// ─────────────────────────────────────────────────────────
+// SCREEN 3 → CONFIRM & GO TO WINNER
+// ─────────────────────────────────────────────────────────
+function confirmAndPick() {
   if (persons.length === 0) {
-    alert('No people selected. Add some people first.');
+    alert('No people in the list. Tap empty space to add at least one.');
     return;
   }
-  confirmed = true;
-  setStepStatus('s4status', `${persons.length} confirmed`, 'done');
-  document.getElementById('editStep').style.display = 'none';
 
-  // Open winner step
-  document.getElementById('winnerStep').style.display = '';
-  document.getElementById('winnerSection').style.display = 'flex';
+  // Set up winner canvas
   winnerCanvas.width  = panoramaCanvas.width;
   winnerCanvas.height = panoramaCanvas.height;
   winnerCanvas.style.height = DISPLAY_H + 'px';
   winnerCanvas.style.width  = 'auto';
 
+  goTo(4);
   pickWinner();
-  document.getElementById('winnerStep').scrollIntoView({ behavior:'smooth' });
 }
 
-// ─────────────────────────────────────────────
-// STEP 5: WINNER
-// ─────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────
+// SCREEN 4 — PICK / REROLL WINNER
+// ─────────────────────────────────────────────────────────
 function pickWinner() {
   if (persons.length === 0) return;
-  const winnerIdx = Math.floor(Math.random() * persons.length);
-  const winner    = persons[winnerIdx];
 
-  // Draw
+  const idx    = Math.floor(Math.random() * persons.length);
+  const winner = persons[idx];
+
+  // Draw panorama base
   winnerCtx.clearRect(0, 0, winnerCanvas.width, winnerCanvas.height);
   winnerCtx.drawImage(panoramaCanvas, 0, 0);
 
-  // Dim all non-winners with a subtle overlay
-  winnerCtx.fillStyle = 'rgba(0,0,0,0.18)';
+  // Subtle dark overlay over entire image
+  winnerCtx.fillStyle = 'rgba(0,0,0,0.22)';
   winnerCtx.fillRect(0, 0, winnerCanvas.width, winnerCanvas.height);
 
   // Draw non-winners very faintly
+  winnerCtx.strokeStyle = '#ff3c5f';
+  winnerCtx.lineWidth   = 1.5;
   persons.forEach((p, i) => {
-    if (i === winnerIdx) return;
-    winnerCtx.globalAlpha  = 0.15;
-    winnerCtx.strokeStyle  = '#ff3c5f';
-    winnerCtx.lineWidth    = 1.5;
+    if (i === idx) return;
+    winnerCtx.globalAlpha = 0.12;
     winnerCtx.strokeRect(p.x, p.y, p.w, p.h);
   });
 
-  // Draw winner prominently
+  // Draw winner — full opacity, glowing green
   winnerCtx.globalAlpha = 1;
   winnerCtx.strokeStyle = '#00ffaa';
   winnerCtx.lineWidth   = 4;
-  winnerCtx.strokeRect(winner.x, winner.y, winner.w, winner.h);
-
-  // Winner glow
   winnerCtx.shadowColor = '#00ffaa';
-  winnerCtx.shadowBlur  = 24;
+  winnerCtx.shadowBlur  = 26;
   winnerCtx.strokeRect(winner.x, winner.y, winner.w, winner.h);
   winnerCtx.shadowBlur  = 0;
 
   // Corner brackets on winner
-  const cs = Math.min(20, winner.w * 0.18, winner.h * 0.1);
+  const cs = Math.min(22, winner.w * 0.18, winner.h * 0.1);
   winnerCtx.lineWidth = 5;
-  winnerCtx.strokeStyle = '#00ffaa';
   winnerCtx.beginPath();
-  winnerCtx.moveTo(winner.x, winner.y+cs);           winnerCtx.lineTo(winner.x, winner.y);            winnerCtx.lineTo(winner.x+cs, winner.y);
-  winnerCtx.moveTo(winner.x+winner.w-cs, winner.y);  winnerCtx.lineTo(winner.x+winner.w, winner.y);   winnerCtx.lineTo(winner.x+winner.w, winner.y+cs);
-  winnerCtx.moveTo(winner.x, winner.y+winner.h-cs);  winnerCtx.lineTo(winner.x, winner.y+winner.h);   winnerCtx.lineTo(winner.x+cs, winner.y+winner.h);
-  winnerCtx.moveTo(winner.x+winner.w-cs, winner.y+winner.h); winnerCtx.lineTo(winner.x+winner.w, winner.y+winner.h); winnerCtx.lineTo(winner.x+winner.w, winner.y+winner.h-cs);
+  winnerCtx.moveTo(winner.x,           winner.y + cs);        winnerCtx.lineTo(winner.x,           winner.y);            winnerCtx.lineTo(winner.x + cs,           winner.y);
+  winnerCtx.moveTo(winner.x+winner.w-cs, winner.y);           winnerCtx.lineTo(winner.x+winner.w,  winner.y);            winnerCtx.lineTo(winner.x+winner.w,  winner.y + cs);
+  winnerCtx.moveTo(winner.x,           winner.y+winner.h-cs); winnerCtx.lineTo(winner.x,           winner.y+winner.h);   winnerCtx.lineTo(winner.x + cs,      winner.y+winner.h);
+  winnerCtx.moveTo(winner.x+winner.w-cs, winner.y+winner.h);  winnerCtx.lineTo(winner.x+winner.w,  winner.y+winner.h);   winnerCtx.lineTo(winner.x+winner.w,  winner.y+winner.h-cs);
   winnerCtx.stroke();
   winnerCtx.globalAlpha = 1;
 
   // Winner label
-  const fontSize = Math.max(12, Math.min(22, winner.h * 0.18));
-  winnerCtx.font  = `600 ${fontSize}px 'DM Mono',monospace`;
+  const fs = Math.max(13, Math.min(22, winner.h * 0.18));
+  winnerCtx.font = `600 ${fs}px 'DM Mono',monospace`;
   const lbl = '★ WINNER';
   const tw  = winnerCtx.measureText(lbl).width;
-  const lh  = fontSize + 10;
+  const lh  = fs + 10;
   winnerCtx.fillStyle = '#00ffaa';
   winnerCtx.fillRect(winner.x, winner.y - lh, tw + 14, lh);
   winnerCtx.fillStyle = '#000';
   winnerCtx.fillText(lbl, winner.x + 7, winner.y - 6);
 
-  // Scroll canvas to show winner
-  const scroll = document.getElementById('winnerCanvasScroll');
-  const rect   = winnerCanvas.getBoundingClientRect();
-  const scaleX = rect.width / winnerCanvas.width;
-  const centerX = (winner.x + winner.w / 2) * scaleX;
+  // Auto-scroll canvas to show winner centered
+  const scroll  = document.getElementById('winnerScroll');
+  const scaleX  = scroll.clientWidth  / winnerCanvas.width  * (winnerCanvas.width  / winnerCanvas.width);
+  const displayW = winnerCanvas.width * (DISPLAY_H / winnerCanvas.height);
+  const scaleX2  = displayW / winnerCanvas.width;
+  const centerX  = (winner.x + winner.w / 2) * scaleX2;
   scroll.scrollLeft = centerX - scroll.clientWidth / 2;
 
   // Update badge
-  document.getElementById('wbNum').textContent = '#' + (winnerIdx + 1);
-  document.getElementById('wbSub').textContent = `Person ${winnerIdx+1} of ${persons.length}`;
-  setStepStatus('s5status', 'Winner picked!', 'done');
+  document.getElementById('wbNum').textContent = '#' + (idx + 1);
+  document.getElementById('wbSub').textContent = `Person ${idx + 1} of ${persons.length}`;
 
   launchConfetti();
 }
 
-// ─────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────
+// START OVER
+// ─────────────────────────────────────────────────────────
+function startOver() {
+  videoFile = null;
+  persons   = [];
+  document.getElementById('fileInput').value = '';
+  const dz = document.getElementById('dropZone');
+  dz.classList.remove('has-file');
+  dz.querySelector('.dz-label').style.display = '';
+  document.getElementById('dzFname').style.display = 'none';
+  document.getElementById('buildBtn').disabled = true;
+  document.getElementById('s1progress').style.display = 'none';
+  document.getElementById('s2progress').style.display = 'none';
+  hiddenVideo.src = '';
+  goTo(1);
+}
+
+// ─────────────────────────────────────────────────────────
 // ROBOFLOW
-// ─────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────
 async function runModel(modelId, version, base64, confPct) {
   const url = `https://detect.roboflow.com/${modelId}/${version}`
             + `?api_key=${apiKey}&confidence=${confPct}&overlap=30`;
@@ -807,26 +807,25 @@ async function runModel(modelId, version, base64, confPct) {
   if (!res.ok) {
     let msg = `HTTP ${res.status}`;
     try { const j = await res.json(); msg = j.message || j.error || msg; } catch(_) {}
-    if (res.status === 401 || res.status === 403) msg = 'Invalid API key — reload and re-enter';
+    if (res.status === 401 || res.status === 403) msg = 'Invalid API key — reload to re-enter';
     throw new Error(msg);
   }
   const data = await res.json();
   return data.predictions || [];
 }
 
-// Non-maximum suppression
 function nms(boxes, iouThreshold = 0.35) {
-  const sorted = [...boxes].sort((a,b) => b.confidence - a.confidence);
+  const sorted = [...boxes].sort((a, b) => b.confidence - a.confidence);
   const kept = [];
   for (const box of sorted) {
-    const bx1 = box.x - box.width/2, by1 = box.y - box.height/2;
-    const bx2 = bx1 + box.width,     by2 = by1 + box.height;
+    const bx1 = box.x - box.width/2,  by1 = box.y - box.height/2;
+    const bx2 = bx1 + box.width,      by2 = by1 + box.height;
     let suppressed = false;
     for (const k of kept) {
       const kx1 = k.x - k.width/2, ky1 = k.y - k.height/2;
       const kx2 = kx1 + k.width,   ky2 = ky1 + k.height;
-      const ix = Math.max(0, Math.min(bx2,kx2) - Math.max(bx1,kx1));
-      const iy = Math.max(0, Math.min(by2,ky2) - Math.max(by1,ky1));
+      const ix  = Math.max(0, Math.min(bx2,kx2) - Math.max(bx1,kx1));
+      const iy  = Math.max(0, Math.min(by2,ky2) - Math.max(by1,ky1));
       const inter = ix * iy;
       const union = box.width*box.height + k.width*k.height - inter;
       if (union > 0 && inter/union > iouThreshold) { suppressed = true; break; }
@@ -836,9 +835,9 @@ function nms(boxes, iouThreshold = 0.35) {
   return kept;
 }
 
-// ─────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────
 // VIDEO HELPERS
-// ─────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────
 function loadVideoMeta(el, src) {
   return new Promise((resolve, reject) => {
     el.src = src; el.load();
@@ -850,9 +849,9 @@ function loadVideoMeta(el, src) {
     };
     el.addEventListener('loadedmetadata', onMeta);
     el.addEventListener('error', onErr);
-    el.play().catch(()=>{});
-    setTimeout(()=>el.pause(), 80);
-    setTimeout(()=>{ cleanup(); resolve(); }, 8000);
+    el.play().catch(() => {});
+    setTimeout(() => el.pause(), 80);
+    setTimeout(() => { cleanup(); resolve(); }, 8000);
   });
 }
 
@@ -868,7 +867,6 @@ function seekVideo(el, time) {
 
 function canvasToBase64(canvas) {
   return new Promise(resolve => {
-    // Use toBlob for memory efficiency on large panoramas, then read as base64
     canvas.toBlob(blob => {
       const reader = new FileReader();
       reader.onloadend = () => resolve(reader.result.split(',')[1]);
@@ -877,71 +875,41 @@ function canvasToBase64(canvas) {
   });
 }
 
-// ─────────────────────────────────────────────
-// UI HELPERS
-// ─────────────────────────────────────────────
-function showProgress(v) {
-  document.getElementById('progressWrap').style.display = v ? 'flex' : 'none';
-}
-function setProgress(pct, label) {
-  document.getElementById('progressFill').style.width  = pct + '%';
-  document.getElementById('progressLabel').textContent = label;
-  document.getElementById('s3status').textContent      = label;
-  document.getElementById('s3status').className        = 'step-status active';
-}
-function setStepStatus(id, text, cls) {
-  const el = document.getElementById(id);
-  el.textContent = text;
-  el.className   = 'step-status ' + (cls || '');
-}
+// ─────────────────────────────────────────────────────────
+// UTILS
+// ─────────────────────────────────────────────────────────
 function updateConf(v) {
   confThreshold = v / 100;
   document.getElementById('confVal').textContent = v + '%';
 }
-function resetAll() {
-  videoFile = null;
-  persons   = [];
-  confirmed = false;
-  document.getElementById('fileInput').value = '';
-  const dz = document.getElementById('dropZone');
-  dz.classList.remove('has-file');
-  dz.querySelector('.dz-label').style.display = '';
-  document.getElementById('dzFname').style.display = 'none';
-  setStepStatus('s1status','Waiting','');
-  setStepStatus('s3status','','');
-  document.getElementById('buildBtn').disabled = true;
-  document.getElementById('panoramaWrap').style.display = 'none';
-  document.getElementById('editStep').style.display   = 'none';
-  document.getElementById('winnerStep').style.display = 'none';
-  showProgress(false);
-  hiddenVideo.src = '';
-  window.scrollTo({ top:0, behavior:'smooth' });
-}
+
 function launchConfetti() {
   const colors = ['#ff3c5f','#ffcc00','#00ffaa','#fff','#ff9940','#a78bfa'];
   for (let i = 0; i < 55; i++) {
     const el = document.createElement('div');
     el.className = 'confetti';
     const s = 5 + Math.random() * 7;
-    el.style.cssText = `left:${Math.random()*100}vw;top:-12px;width:${s}px;height:${s}px;`
-      + `background:${colors[Math.floor(Math.random()*colors.length)]};`
-      + `border-radius:${Math.random()>0.45?'50%':'1px'};`
-      + `animation-duration:${1.8+Math.random()*2}s;animation-delay:${Math.random()*0.5}s;`;
+    el.style.cssText =
+      `left:${Math.random()*100}vw;top:-12px;width:${s}px;height:${s}px;` +
+      `background:${colors[Math.floor(Math.random()*colors.length)]};` +
+      `border-radius:${Math.random()>0.45?'50%':'1px'};` +
+      `animation-duration:${1.8+Math.random()*2}s;animation-delay:${Math.random()*0.5}s;`;
     document.body.appendChild(el);
     setTimeout(() => el.remove(), 4000);
   }
 }
 
-// ─────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────
 // INIT
-// ─────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────
 window.addEventListener('load', () => {
   try {
     const saved = sessionStorage.getItem('rf_key');
     if (saved) {
       apiKey = saved;
-      document.getElementById('apiOverlay').classList.add('hide');
-      setTimeout(() => document.getElementById('apiOverlay').remove(), 500);
+      const el = document.getElementById('apiOverlay');
+      el.classList.add('hide');
+      setTimeout(() => el.remove(), 500);
     }
   } catch(_) {}
 });
